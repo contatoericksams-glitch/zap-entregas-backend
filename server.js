@@ -5,7 +5,8 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 // Página inicial
 app.get("/", (req, res) => {
   res.send("ZAP Entregas Inteligentes - servidor online");
@@ -202,12 +203,55 @@ app.get("/webhook", (req, res) => {
   return res.sendStatus(403);
 });
 
-// Recebe eventos e mensagens do WhatsApp
-app.post("/webhook", (req, res) => {
-  console.log("Evento recebido do WhatsApp:");
-  console.log(JSON.stringify(req.body, null, 2));
+app.post("/webhook", async (req, res) => {
+    console.log("Evento recebido do WhatsApp:");
+    console.log(JSON.stringify(req.body, null, 2));
 
-  res.sendStatus(200);
+    // Confirma imediatamente o recebimento para a Meta
+    res.sendStatus(200);
+
+    try {
+        const value = req.body?.entry?.[0]?.changes?.[0]?.value;
+        const message = value?.messages?.[0];
+
+        // Ignora eventos que não sejam mensagens recebidas
+        if (!message) return;
+
+        const numeroCliente = message.from;
+        const textoRecebido = message.text?.body || "";
+
+        console.log("Cliente:", numeroCliente);
+        console.log("Mensagem:", textoRecebido);
+
+        const resposta =
+            "Olá! 👋 Bem-vindo à ZAP Entregas Inteligentes. O que você precisa entregar?";
+
+        const response = await fetch(
+            `https://graph.facebook.com/v26.0/${PHONE_NUMBER_ID}/messages`,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${WHATSAPP_TOKEN}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    messaging_product: "whatsapp",
+                    recipient_type: "individual",
+                    to: numeroCliente,
+                    type: "text",
+                    text: {
+                        body: resposta
+                    }
+                })
+            }
+        );
+
+        const resultado = await response.json();
+        console.log("Resposta da Meta:", JSON.stringify(resultado, null, 2));
+
+    } catch (erro) {
+        console.error("Erro ao responder WhatsApp:", erro);
+    }
 });
 
 app.listen(PORT, () => {
