@@ -108,7 +108,7 @@ function categoryCode(text) {
   if (s === "4" || s === "navegator") return "navegator";
   return null;
 }
-function createPassengerFlow(supabase) {
+function createPassengerFlow(supabase, onTestQuote) {
   async function updateState(contactId, step, requestId) {
     errorCheck(await supabase.from("nave_wa_conversation_states").upsert({
       contact_id: contactId, request_id: requestId || null, step,
@@ -232,9 +232,20 @@ function createPassengerFlow(supabase) {
         updated_at: new Date().toISOString(),
       }).eq("id",req.id).eq("status","draft"),"save_quote");
       await updateState(contactId, "idle", null);
+      let simulatedOfferSent = false;
+      if (typeof onTestQuote === "function" && chosen === "confort") {
+        try {
+          simulatedOfferSent = await onTestQuote(req.id, contactId, chosen);
+        } catch (err) {
+          console.error("Pilot demonstration offer skipped:", err.message);
+        }
+      }
       return "✅ *Demonstração concluída!*\n\nCategoria: *" + category.title +
         "*\nPreço ilustrativo: *" + brl.format(cents/100) +
-        "*\n\n⚠️ Nenhuma corrida foi solicitada, nenhum motorista foi acionado e não há cobrança.\n\nVAI SAIR? VAI DE NAVE. ⚡\nEnvie *1* para simular outra viagem.";
+        "*\n\n⚠️ " + (simulatedOfferSent
+          ? "Uma oferta FICTÍCIA foi enviada ao piloto de teste. Ninguém deve se deslocar. Não há cobrança."
+          : "Nenhuma corrida REAL foi solicitada, nenhum motorista foi acionado e não há cobrança.") +
+        "\n\nVAI SAIR? VAI DE NAVE. ⚡\nEnvie *1* para simular outra viagem.";
     }
     if (message.type === "location") return "NAVE ⚡ Recebi uma localização. Para iniciar uma simulação de corrida, envie *1*.";
     return welcome;
