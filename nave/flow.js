@@ -158,6 +158,42 @@ function createPassengerFlow(supabase, onTestQuote) {
       return "NAVE ⚡ Entendido. Não enviaremos mensagens promocionais. Para conversar novamente, envie OI.";
     }
     if (cmd === "cancelar" || cmd === "menu" || cmd === "reiniciar") {
+      if (cmd === "cancelar") {
+        // Permitir cancelamento da simulação mesmo depois da etapa de escolha,
+        // quando o estado da conversa já voltou para idle.
+        const last = await supabase.from("nave_wa_ride_requests")
+          .select("id,status,accepted_at,cancellation_free_until")
+          .eq("passenger_contact_id",contactId)
+          .eq("quote_is_test_only",true)
+          .in("status",["quoted","accepted"])
+          .order("created_at",{ascending:false}).limit(1);
+        errorCheck(last,"lookup_last_test_ride");
+        const request=last.data?.[0];
+        if(request){
+          const cancellation = await supabase.from("nave_wa_ride_requests")
+            .update({
+              status:"cancelled",
+              cancellation_reason:"Cancelada pelo passageiro em ambiente de testes",
+              updated_at:new Date().toISOString(),
+            })
+            .eq("id",request.id).eq("passenger_contact_id",contactId)
+            .in("status",["quoted","accepted"])
+            .eq("quote_is_test_only",true).select("id");
+          errorCheck(cancellation,"cancel_test_ride");
+          if(cancellation.data?.length){
+            errorCheck(await supabase.from("nave_wa_driver_offers")
+              .update({status:"cancelled",responded_at:new Date().toISOString()})
+              .eq("ride_request_id",request.id).eq("status","pending"),"cancel_pending_test_offers");
+            await reset(contactId,state,"Cancelamento de teste");
+            const withinWindow=request.accepted_at && request.cancellation_free_until &&
+              Date.now() <= new Date(request.cancellation_free_until).getTime();
+            return "✅ *Simulação cancelada!*\n\n" +
+              (withinWindow ? "Cancelamento dentro da tolerância de *20 segundos*.\n" : "") +
+              "Nenhuma corrida comercial existiu, ninguém precisa se deslocar e *não há cobrança*.\n\n" +
+              "Envie *1* para simular outra viagem.";
+          }
+        }
+      }
       await reset(contactId, state, "Cancelamento voluntário do teste");
       return "NAVE ⚡ Teste encerrado sem cobrança e sem chamar motorista.\n\nEnvie *1* para começar outro teste.";
     }
