@@ -6,6 +6,26 @@ const EIGHT = /^[0-9a-f]{8}$/i;
 const TEST_CATEGORY = "confort";
 const TEST_OFFER_MILLIS = 180000;
 const WHATSAPP_TEST_WINDOW_MILLIS = 23 * 60 * 60 * 1000;
+const BUTTON_ONLINE = "nave_pilot_online_v1";
+const BUTTON_OFFLINE = "nave_pilot_offline_v1";
+const BUTTON_STATUS = "nave_pilot_status_v1";
+function availabilityMenu(channel, preface="") {
+  const state = channel.availability_state === "online" ? "🟢 ONLINE" : "⚪ OFFLINE";
+  return {
+    kind: "pilot_availability_menu",
+    text: (preface ? preface + "\n\n" : "") +
+      "⚡ *CENTRAL NAVE — PILOTO NAVE-0001*\n" +
+      "Disponibilidade: *" + state + "*\n\n" +
+      "Toque em uma opção abaixo para alterar seu status.\n" +
+      "Somente testes fictícios: sem corridas comerciais nem deslocamentos.\n" +
+      "Se os botões não aparecerem, digite *ONLINE*, *OFFLINE* ou *STATUS PILOTO*.",
+    buttons: [
+      { id: BUTTON_ONLINE, title: "Ficar online" },
+      { id: BUTTON_OFFLINE, title: "Ficar offline" },
+      { id: BUTTON_STATUS, title: "Meu status" },
+    ],
+  };
+}
 
 function tidy(value) {
   return String(value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
@@ -20,43 +40,66 @@ function brl(cents) {
 function createDriverPilot(supabase, sendWhatsAppMessage) {
   async function findByPhone(phone) {
     const r = await supabase.from("nave_wa_driver_test_channels")
-      .select("driver_id,phone_e164,test_enabled,verified_at,last_inbound_at")
+      .select("driver_id,phone_e164,test_enabled,verified_at,last_inbound_at,availability_state")
       .eq("phone_e164", phone).maybeSingle();
     return dataOrThrow(r, "lookup");
   }
   async function handleDriverMessage(phone, contactId, message) {
-    if (message.type !== "text") return null;
-    const text = tidy(message.text?.body);
-    if (!/^(ATIVAR PILOTO|PAUSAR PILOTO|STATUS PILOTO|ACEITAR(?:\s+[0-9A-F]{8})?|RECUSAR(?:\s+[0-9A-F]{8})?)$/.test(text)) return null;
+    const buttonId = message.type === "interactive" && message.interactive?.type === "button_reply"
+      ? message.interactive.button_reply?.id : null;
+    const text = buttonId === BUTTON_ONLINE ? "ONLINE"
+      : buttonId === BUTTON_OFFLINE ? "OFFLINE"
+      : buttonId === BUTTON_STATUS ? "STATUS PILOTO"
+      : message.type === "text" ? tidy(message.text?.body) : "";
+    if (!/^(ATIVAR PILOTO|PAUSAR PILOTO|STATUS PILOTO|MENU PILOTO|ONLINE|OFFLINE|ACEITAR(?:\s+[0-9A-F]{8})?|RECUSAR(?:\s+[0-9A-F]{8})?)$/.test(text)) return null;
     const channel = await findByPhone(phone);
     if (!channel) return null; // Só número pré-cadastrado como piloto.
     const now = new Date().toISOString();
     if (text === "ATIVAR PILOTO") {
       dataOrThrow(await supabase.from("nave_wa_driver_test_channels")
-        .update({ test_enabled: true, verified_at: now, last_inbound_at: now, updated_at: now })
+        .update({ test_enabled: true, verified_at: now, availability_state: "offline", availability_changed_at: now, last_inbound_at: now, updated_at: now })
         .eq("driver_id", channel.driver_id), "opt_in");
       dataOrThrow(await supabase.from("nave_wa_contacts")
         .update({ is_driver: true, updated_at: now }).eq("id", contactId), "set_driver_contact");
-      return "⚡ *NAVE PILOTO — TESTES ATIVADOS*\n\nSeu WhatsApp está confirmado para receber ofertas SIMULADAS da categoria *NAVE Confort*.\n\n✅ Nenhum passageiro real será transportado.\n✅ Nenhuma cobrança será realizada.\n✅ Seu cadastro documental continua pendente.\n\nPara pausar, envie *PAUSAR PILOTO*.\nPara consultar, envie *STATUS PILOTO*.\n\nMantenha esta conversa ativa: mensagens de teste fora da janela do WhatsApp exigirão templates aprovados.";
+      return availabilityMenu({...channel, availability_state:"offline"}, 
+        "✅ WhatsApp confirmado! Os testes foram ativados, mas você começa *OFFLINE* por segurança.");
     }
     if (text === "PAUSAR PILOTO") {
       dataOrThrow(await supabase.from("nave_wa_driver_test_channels")
-        .update({test_enabled:false,last_inbound_at:now,updated_at:now})
+        .update({test_enabled:false,availability_state:"offline",availability_changed_at:now,last_inbound_at:now,updated_at:now})
         .eq("driver_id",channel.driver_id), "pause");
       return "NAVE ⚡ Notificações de testes pausadas. Para reativar, envie *ATIVAR PILOTO*.";
     }
     // Outros comandos renovam a janela de atendimento se vierem do motorista.
     dataOrThrow(await supabase.from("nave_wa_driver_test_channels")
       .update({last_inbound_at:now,updated_at:now}).eq("driver_id",channel.driver_id), "last_inbound");
-    if (text === "STATUS PILOTO") {
+    if (text === "ONLINE" || text === "OFFLINE") {
+      if (!channel.test_enabled || !channel.verified_at) {
+        return "NAVE ⚡ Primeiro envie *ATIVAR PILOTO* para confirmar o número e habilitar os testes.";
+      }
+      const availability_state = text === "ONLINE" ? "online" : "offline";
+      dataOrThrow(await supabase.from("nave_wa_driver_test_channels")
+        .update({availability_state,availability_changed_at:now,updated_at:now})
+        .eq("driver_id",channel.driver_id).eq("test_enabled",true), "update_availability");
+      if (availability_state === "offline") {
+        dataOrThrow(await supabase.from("nave_wa_driver_offers")
+          .update({status:"cancelled",responded_at:now})
+          .eq("driver_id",channel.driver_id).eq("status","pending"), "cancel_pending_when_offline");
+      }
+      return availabilityMenu({...channel,availability_state},
+        availability_state === "online"
+          ? "✅ Você está *ONLINE* para ofertas *SIMULADAS* de NAVE Confort."
+          : "✅ Você está *OFFLINE*. Não receberá novas ofertas de teste.");
+    }
+    if (text === "STATUS PILOTO" || text === "MENU PILOTO") {
       const d = dataOrThrow(await supabase.from("driver_profiles")
         .select("driver_code,status").eq("user_id",channel.driver_id).single(), "driver_status");
-      return "⚡ *CENTRAL NAVE — PILOTO*\n\n" + d.driver_code +
-        "\nStatus documental: " + (d.status==="pending" ? "PENDENTE" : d.status) +
-        "\nOfertas SIMULADAS: " + (channel.test_enabled ? "ATIVADAS" : "PAUSADAS") +
-        "\n\nPara mudar: *ATIVAR PILOTO* ou *PAUSAR PILOTO*.";
+      return availabilityMenu(channel, "Motorista: " + d.driver_code +
+        "\nCadastro documental: " + (d.status === "pending" ? "PENDENTE" : d.status) +
+        "\nPiloto de testes: " + (channel.test_enabled ? "ATIVO" : "PAUSADO"));
     }
-    if (!channel.test_enabled || !channel.verified_at) return "NAVE ⚡ Primeiro envie *ATIVAR PILOTO* para confirmar o teste.";
+    if (!channel.test_enabled || !channel.verified_at || channel.availability_state !== "online")
+      return "NAVE ⚡ Você precisa estar *ONLINE* para aceitar uma oferta fictícia. Envie *STATUS PILOTO* para abrir os botões.";
     const [action, suffix] = text.split(/\s+/);
     if (!EIGHT.test(suffix || "")) return "NAVE ⚡ Envie o comando completo, por exemplo: *ACEITAR A1B2C3D4*, usando o código recebido na oferta.";
     const results = dataOrThrow(await supabase.from("nave_wa_driver_offers")
@@ -106,7 +149,7 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
     if (categoryCode!==TEST_CATEGORY) return;
     const drivers=dataOrThrow(await supabase.from("nave_wa_driver_test_channels")
       .select("driver_id,phone_e164,last_inbound_at").eq("test_enabled",true)
-      .eq("is_test_only",true).not("verified_at","is",null).limit(5),"active_pilots");
+      .eq("availability_state","online").eq("is_test_only",true).not("verified_at","is",null).limit(5),"active_pilots");
     const passenger=dataOrThrow(await supabase.from("nave_wa_contacts")
       .select("phone_e164").eq("id",passengerContactId).single(),"passenger_contact");
     const ride=dataOrThrow(await supabase.from("nave_wa_ride_requests")
