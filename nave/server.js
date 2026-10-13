@@ -3,6 +3,7 @@
 const express = require("express");
 const crypto = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
+const { createPassengerFlow } = require("./flow");
 
 const path = require("node:path");
 const app = express();
@@ -24,6 +25,7 @@ const supabase = config.supabaseUrl && config.supabaseServiceRole
     auth: { persistSession: false, autoRefreshToken: false },
   })
   : null;
+const handlePassengerMessage = supabase ? createPassengerFlow(supabase) : null;
 
 app.use(express.json({
   limit: "128kb",
@@ -62,17 +64,6 @@ function validSignature(req) {
 function userPhone(from) {
   if (typeof from !== "string" || !/^[1-9][0-9]{7,14}$/.test(from)) return null;
   return "+" + from;
-}
-
-function initialReply(text) {
-  const body = (text || "").trim().toLowerCase();
-  if (body === "sair" || body === "parar") {
-    return "NAVE ⚡ Entendido. Nao enviaremos mensagens promocionais. Para falar novamente, envie OI.";
-  }
-  if (body === "corrida" || body === "1") {
-    return "NAVE ⚡ Estamos preparando nossa operacao 100% eletrica em Toledo. Neste momento nao recebemos pedidos de corridas reais. Avisaremos quando o servico estiver disponivel somente mediante sua autorizacao.";
-  }
-  return "Ola! ⚡ Bem-vindo a NAVE. VAI SAIR? VAI DE NAVE. Nosso atendimento por WhatsApp esta em fase de testes. Digite 1 para saber sobre as corridas ou PARAR para nao receber comunicados.";
 }
 
 async function sendWhatsAppMessage(to, message) {
@@ -121,10 +112,11 @@ async function processWebhook(payload) {
         if (eventError?.code === "23505") continue; // duplicate delivery by Meta
         if (eventError) throw new Error("Could not store WhatsApp event");
 
-        if (message.type === "text") {
-          await sendWhatsAppMessage(message.from, initialReply(message.text?.body));
+        if (message.type === "text" || message.type === "location") {
+          const reply = await handlePassengerMessage(contactId, message);
+          await sendWhatsAppMessage(message.from, reply);
         } else {
-          await sendWhatsAppMessage(message.from, "NAVE ⚡ Por enquanto, envie uma mensagem de texto para conversar com a Central.");
+          await sendWhatsAppMessage(message.from, "NAVE ⚡ Envie uma mensagem de texto ou a localização do WhatsApp. Digite 1 para simular uma corrida.");
         }
         await supabase.from("nave_wa_message_events")
           .update({ processed_at: new Date().toISOString(), delivery_status: "processed" })
