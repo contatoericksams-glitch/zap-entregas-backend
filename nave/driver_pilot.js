@@ -47,9 +47,15 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
   async function handleDriverMessage(phone, contactId, message) {
     const buttonId = message.type === "interactive" && message.interactive?.type === "button_reply"
       ? message.interactive.button_reply?.id : null;
+    // Os botões de oferta carregam o ID integral; o motorista não precisa copiar códigos.
+    const offerButtonMatch = typeof buttonId === "string"
+      ? /^(nave_offer_accept|nave_offer_decline):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(buttonId)
+      : null;
     const text = buttonId === BUTTON_ONLINE ? "ONLINE"
       : buttonId === BUTTON_OFFLINE ? "OFFLINE"
       : buttonId === BUTTON_STATUS ? "STATUS PILOTO"
+      : offerButtonMatch ? ((offerButtonMatch[1] === "nave_offer_accept" ? "ACEITAR " : "RECUSAR ") +
+        offerButtonMatch[2].slice(0,8).toUpperCase())
       : message.type === "text" ? tidy(message.text?.body) : "";
     if (!/^(ATIVAR PILOTO|PAUSAR PILOTO|STATUS PILOTO|MENU PILOTO|ONLINE|OFFLINE|ACEITAR(?:\s+[0-9A-F]{8})?|RECUSAR(?:\s+[0-9A-F]{8})?)$/.test(text)) return null;
     const channel = await findByPhone(phone);
@@ -106,7 +112,9 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
       .select("id,ride_request_id,expires_at,status")
       .eq("driver_id", channel.driver_id).eq("status","pending")
       .order("offered_at", { ascending:false }).limit(20), "offers");
-    const offer=results.find(o=>o.id.slice(0,8).toUpperCase()===suffix);
+    const offer=results.find(o=>offerButtonMatch
+      ? o.id.toLowerCase()===offerButtonMatch[2].toLowerCase()
+      : o.id.slice(0,8).toUpperCase()===suffix);
     if (!offer) return "NAVE ⚡ Oferta de teste não encontrada ou já respondida.";
     if (Date.now() > new Date(offer.expires_at).getTime()) {
       await supabase.from("nave_wa_driver_offers").update({status:"expired",responded_at:now}).eq("id",offer.id).eq("status","pending");
@@ -132,18 +140,28 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
     dataOrThrow(await supabase.from("nave_wa_ride_requests").update({
       status:"accepted",accepted_driver_id:channel.driver_id,
       accepted_at:acceptedAt.toISOString(),
-      cancellation_free_until:new Date(acceptedAt.getTime()+2*60*1000).toISOString(),
+      cancellation_free_until:new Date(acceptedAt.getTime()+20*1000).toISOString(),
       updated_at:now,
     }).eq("id",ride.id).eq("quote_is_test_only",true).eq("status","quoted"),"test_ride_accept");
+    let passengerNotified = false;
     try {
       const passenger = dataOrThrow(await supabase.from("nave_wa_contacts")
         .select("phone_e164").eq("id",ride.passenger_contact_id).single(),"passenger");
       const digits=passenger.phone_e164.replace("+","");
-      const msg="🧪 *NAVE — ACEITE SIMULADO*\n\nO piloto de teste *NAVE-0001* aceitou sua viagem fictícia na categoria Confort (Geely EX2 Pro).\n\nJanela de cancelamento ilustrativa: 2 minutos após o aceite.\n\n⚠️ Este é apenas um teste. Nenhum motorista está se deslocando e não há cobrança.\n\nVAI SAIR? VAI DE NAVE. ⚡";
+      const msg="🧪 *SIMULAÇÃO NAVE*\n\n⚡ *Sua NAVE está a caminho!*\n\n" +
+        "✅ O piloto *NAVE-0001* aceitou sua solicitação de teste.\n" +
+        "🚙 Veículo: *Geely EX2 Pro*\nCategoria: *NAVE Confort*\n\n" +
+        "⚠️ *ATENÇÃO: Esta é apenas uma simulação.* " +
+        "Nenhum motorista está realmente se deslocando e não haverá cobrança.\n\n" +
+        "VAI SAIR? VAI DE NAVE. ⚡";
       await sendWhatsAppMessage(digits,msg);
+      passengerNotified = true;
     } catch(e) { console.error("Pilot passenger demo notification failed:",e.message); }
-    return "✅ *ACEITE DE TESTE REGISTRADO!*\n\nCódigo: " + suffix +
-      "\nA NAVE tentou avisar o passageiro na conversa de teste.\n\n⚠️ Não se desloque: nenhuma corrida real foi criada e não há cobrança.";
+    return "✅ *ACEITE SIMULADO REGISTRADO!*\n\n" +
+      (passengerNotified
+        ? "O passageiro recebeu a mensagem de teste: *Sua NAVE está a caminho!*"
+        : "A confirmação do passageiro não pôde ser enviada. Nossa Central poderá verificar.") +
+      "\n\n⚠️ NÃO SE DESLOQUE. Nenhuma corrida real foi criada e não há cobrança.";
   }
   async function onQuote(requestId, passengerContactId, categoryCode) {
     if (categoryCode!==TEST_CATEGORY) return;
@@ -175,13 +193,23 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
       if (!offers || offers.length!==1) return;
       const offerId=offers[0].id;
       const suffix=offerId.slice(0,8).toUpperCase();
-      const msg="🧪 *NAVE — OFERTA DE CORRIDA SIMULADA*\n\n"+
+      const offerText="🧪 *NAVE — OFERTA DE CORRIDA SIMULADA*\n\n"+
         "Piloto: "+profile.driver_code+"\nCategoria: NAVE Confort\n"+
         "📍 Embarque: "+ride.pickup_label+"\n🏁 Destino: "+ride.destination_label+
         "\n💰 Tarifa ILUSTRATIVA: "+brl(ride.fare_quote_cents)+
-        "\n\nPara aceitar, responda:\n*ACEITAR "+suffix+"*\n"+
-        "Para recusar:\n*RECUSAR "+suffix+"*\n"+
-        "\nOferta de teste expira em 3 minutos.\n⚠️ NÃO SE DESLOQUE. Sem passageiro real nem cobrança.";
+        "\n\n*Toque em ACEITAR ou RECUSAR abaixo.*\n" +
+        "Esta oferta expira em 3 minutos.\n" +
+        "⚠️ NÃO SE DESLOQUE. Sem passageiro real nem cobrança.\n\n" +
+        "Se os botões não aparecerem, envie:\n" +
+        "*ACEITAR "+suffix+"* ou *RECUSAR "+suffix+"*.";
+      const msg = {
+        kind: "pilot_offer_card",
+        text: offerText,
+        buttons: [
+          {id:"nave_offer_accept:"+offerId,title:"Aceitar corrida"},
+          {id:"nave_offer_decline:"+offerId,title:"Recusar corrida"},
+        ],
+      };
       try {
         await sendWhatsAppMessage(driver.phone_e164.slice(1),msg);
         return true; // Única oferta de teste enviada ao piloto.
