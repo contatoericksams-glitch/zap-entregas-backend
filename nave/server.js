@@ -4,7 +4,10 @@ const express = require("express");
 const crypto = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
 
+const path = require("node:path");
 const app = express();
+// Páginas públicas de privacidade e exclusão de dados da NAVE.
+app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"], index: false }));
 const config = {
   port: Number(process.env.PORT || 3000),
   verifyToken: process.env.WA_VERIFY_TOKEN || "",
