@@ -69,18 +69,41 @@ function userPhone(from) {
 }
 
 async function sendWhatsAppMessage(to, message) {
-  const response = await fetch(`https://graph.facebook.com/${config.graphVersion}/${config.phoneNumberId}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.accessToken}`,
-      "Content-Type": "application/json",
+  const menu = message && typeof message === "object" && message.kind === "pilot_availability_menu";
+  const base = { messaging_product: "whatsapp", recipient_type: "individual", to };
+  const textPayload = { ...base, type: "text", text: {
+    body: menu ? message.text : String(message || ""),
+  }};
+  const buttonPayload = menu ? {
+    ...base, type: "interactive", interactive: {
+      type: "button",
+      body: { text: message.text },
+      action: { buttons: message.buttons.map(b => ({
+        type: "reply", reply: { id: b.id, title: b.title }
+      })) },
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { body: message },
-    }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok) throw new Error(`Meta message API HTTP ${response.status}`);
+  } : null;
+  async function send(payload) {
+    return fetch(`https://graph.facebook.com/${config.graphVersion}/${config.phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
+  }
+  const response = await send(buttonPayload || textPayload);
+  if (response.ok) return;
+  if (buttonPayload) {
+    // Compatibilidade: se a Meta rejeitar botões, o motorista continua com comandos por texto.
+    console.error("NAVE interactive menu unavailable; using text fallback (HTTP " + response.status + ")");
+    const fallback = await send(textPayload);
+    if (fallback.ok) return;
+    throw new Error("Meta message API text fallback HTTP " + fallback.status);
+  }
+  throw new Error("Meta message API HTTP " + response.status);
 }
 
 async function processWebhook(payload) {
@@ -114,11 +137,13 @@ async function processWebhook(payload) {
         if (eventError?.code === "23505") continue; // duplicate delivery by Meta
         if (eventError) throw new Error("Could not store WhatsApp event");
 
-        if (message.type === "text" || message.type === "location") {
-          const pilotReply = message.type === "text"
+        if (message.type === "text" || message.type === "location" || message.type === "interactive") {
+          const pilotReply = message.type === "text" || message.type === "interactive"
             ? await driverPilot.handleDriverMessage(from, contactId, message)
             : null;
-          const reply = pilotReply || await handlePassengerMessage(contactId, message);
+          const reply = pilotReply || (message.type === "interactive"
+            ? "NAVE ⚡ Opção não reconhecida. Envie *STATUS PILOTO* para o menu de disponibilidade."
+            : await handlePassengerMessage(contactId, message));
           await sendWhatsAppMessage(message.from, reply);
         } else {
           await sendWhatsAppMessage(message.from, "NAVE ⚡ Envie uma mensagem de texto ou a localização do WhatsApp. Digite 1 para simular uma corrida.");
