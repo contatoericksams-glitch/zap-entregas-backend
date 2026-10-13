@@ -4,6 +4,7 @@ const express = require("express");
 const crypto = require("node:crypto");
 const { createClient } = require("@supabase/supabase-js");
 const { createPassengerFlow } = require("./flow");
+const { createDriverPilot } = require("./driver_pilot");
 
 const path = require("node:path");
 const app = express();
@@ -25,7 +26,8 @@ const supabase = config.supabaseUrl && config.supabaseServiceRole
     auth: { persistSession: false, autoRefreshToken: false },
   })
   : null;
-const handlePassengerMessage = supabase ? createPassengerFlow(supabase) : null;
+const driverPilot = supabase ? createDriverPilot(supabase, sendWhatsAppMessage) : null;
+const handlePassengerMessage = supabase ? createPassengerFlow(supabase, driverPilot.onQuote) : null;
 
 app.use(express.json({
   limit: "128kb",
@@ -113,7 +115,10 @@ async function processWebhook(payload) {
         if (eventError) throw new Error("Could not store WhatsApp event");
 
         if (message.type === "text" || message.type === "location") {
-          const reply = await handlePassengerMessage(contactId, message);
+          const pilotReply = message.type === "text"
+            ? await driverPilot.handleDriverMessage(from, contactId, message)
+            : null;
+          const reply = pilotReply || await handlePassengerMessage(contactId, message);
           await sendWhatsAppMessage(message.from, reply);
         } else {
           await sendWhatsAppMessage(message.from, "NAVE ⚡ Envie uma mensagem de texto ou a localização do WhatsApp. Digite 1 para simular uma corrida.");
