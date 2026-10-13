@@ -141,13 +141,15 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
         "\nOferta de teste expira em 3 minutos.\n⚠️ NÃO SE DESLOQUE. Sem passageiro real nem cobrança.";
       try {
         await sendWhatsAppMessage(driver.phone_e164.slice(1),msg);
+        return true; // Única oferta de teste enviada ao piloto.
       } catch(e) {
         await supabase.from("nave_wa_driver_offers").update({status:"cancelled"})
           .eq("id",offerId).eq("status","pending");
         console.error("Pilot mock offer sending failed:",e.message);
+        return false;
       }
-      return; // Um piloto para este primeiro teste.
     }
+    return false;
   }
   return {handleDriverMessage,onQuote};
 }
