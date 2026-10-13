@@ -69,7 +69,7 @@ function userPhone(from) {
 }
 
 async function sendWhatsAppMessage(to, message) {
-  const menu = message && typeof message === "object" && message.kind === "pilot_availability_menu";
+  const menu = message && typeof message === "object" && (message.kind === "pilot_availability_menu" || message.kind === "pilot_offer_card");
   const base = { messaging_product: "whatsapp", recipient_type: "individual", to };
   const textPayload = { ...base, type: "text", text: {
     body: menu ? message.text : String(message || ""),
