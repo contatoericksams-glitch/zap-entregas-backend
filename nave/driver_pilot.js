@@ -148,11 +148,39 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
       const passenger = dataOrThrow(await supabase.from("nave_wa_contacts")
         .select("phone_e164").eq("id",ride.passenger_contact_id).single(),"passenger");
       const digits=passenger.phone_e164.replace("+","");
-      const msg="🧪 *SIMULAÇÃO NAVE*\n\n⚡ *Sua NAVE está a caminho!*\n\n" +
-        "✅ O piloto *NAVE-0001* aceitou sua solicitação de teste.\n" +
-        "🚙 Veículo: *Geely EX2 Pro*\nCategoria: *NAVE Confort*\n\n" +
-        "⚠️ *ATENÇÃO: Esta é apenas uma simulação.* " +
-        "Nenhum motorista está realmente se deslocando e não haverá cobrança.\n\n" +
+      // Dados reais do cadastro. Nada de inventar nota, foto ou corridas.
+      const profile = dataOrThrow(await supabase.from("driver_profiles")
+        .select("driver_code,created_at,status").eq("user_id",channel.driver_id).single(),"public_pilot_profile");
+      const info = dataOrThrow(await supabase.from("user_profiles")
+        .select("display_name").eq("user_id",channel.driver_id).maybeSingle(),"driver_display_name");
+      const vehicles = dataOrThrow(await supabase.from("vehicles")
+        .select("make,model,model_year,status,powertrain")
+        .eq("driver_id",channel.driver_id).eq("powertrain","electric").limit(1),"driver_test_car");
+      // Contagem apenas de corridas reais concluídas; simuladas não entram.
+      const countResult = await supabase.from("rides")
+        .select("id",{count:"exact",head:true})
+        .eq("driver_id",channel.driver_id).eq("status","completed");
+      dataOrThrow(countResult,"count_completed_rides");
+      const publicName = info?.display_name?.trim()
+        ? info.display_name.trim().slice(0,70) : "Motorista " + profile.driver_code;
+      const car = vehicles?.[0];
+      const carLabel = car ? car.make+" "+car.model+(car.model_year?" ("+car.model_year+")":"") : "Aguardando cadastro";
+      const joined = profile.created_at
+        ? new Date(profile.created_at).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"})
+        : "a confirmar";
+      const msg="🧪 *NAVE — ACEITE SIMULADO*\n\n" +
+        "✅ O piloto aceitou a sua simulação.\n\n" +
+        "👤 *Motorista:* " + publicName + "\n" +
+        "🎖️ *Patente:* Piloto (nível inicial)\n" +
+        "⭐ *Nota:* Ainda sem avaliações\n" +
+        "🚗 *Corridas concluídas na NAVE:* " + (countResult.count ?? 0) + "\n" +
+        "📅 *Cadastro desde:* " + joined + "\n" +
+        "🚙 *Carro:* " + carLabel + "\n" +
+        "📷 *Foto:* Ainda não cadastrada\n" +
+        "🗂️ *Homologação:* Pendente; dados somente para testes\n\n" +
+        "⏱️ *Cancelamento:* Envie CANCELAR. A tolerância de 20 segundos após o aceite " +
+        "é uma regra planejada para corridas reais; nesta simulação não existe taxa.\n\n" +
+        "⚠️ *NÃO É UMA CORRIDA REAL.* O piloto não está se deslocando e não haverá cobrança.\n\n" +
         "VAI SAIR? VAI DE NAVE. ⚡";
       await sendWhatsAppMessage(digits,msg);
       passengerNotified = true;
