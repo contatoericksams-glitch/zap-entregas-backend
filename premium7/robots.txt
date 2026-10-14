@@ -1,0 +1,3 @@
+# Site de prévia: marca, imagens e políticas em validação.
+User-agent: *
+Disallow: /
