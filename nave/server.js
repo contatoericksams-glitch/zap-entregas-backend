@@ -180,9 +180,9 @@ if (process.env.NODE_ENV === "staging") {
 if (process.env.NODE_ENV === "staging") {
   app.get("/api/v5/pilot-readiness", (_req, res) => {
     const configured = {
-      supabase: Boolean(config.supabaseUrl && config.supabaseServiceRole),
+      supabase: Boolean(config.supabaseUrl && process.env.SUPABASE_PUBLISHABLE_KEY),
       adminPublicKey: Boolean(process.env.SUPABASE_PUBLISHABLE_KEY),
-      metaSender: Boolean(config.phoneNumberId && config.accessToken),
+      metaSender: Boolean(config.phoneNumberId && config.accessToken && /^\\+[1-9][0-9]{7,14}$/.test(process.env.NAVE_PILOT_TEST_PHONE_E164 || "")),
       optIn: process.env.NAVE_APP_PILOT_TEST_ENABLED === "true"
     };
     res.set("Cache-Control", "no-store").json({
@@ -194,16 +194,18 @@ if (process.env.NODE_ENV === "staging") {
   });
 }
 
-// V5 staging-only pilot notification: off by default and requires MFA admin login.
+// V5 restricted test sender: admin MFA session + boolean RPC, no service-role key.
 if (process.env.NODE_ENV === "staging" &&
     process.env.NAVE_APP_PILOT_TEST_ENABLED === "true" &&
-    process.env.SUPABASE_PUBLISHABLE_KEY && config.phoneNumberId && config.accessToken && supabase) {
+    process.env.SUPABASE_PUBLISHABLE_KEY && config.phoneNumberId && config.accessToken) {
   const { createMasterAuth } = require("../central-master-v4/master-auth");
-  const { createPilotNotificationRouter } = require("./core/pilot-notify");
+  const { createRestrictedPilotRouter } = require("./core/pilot-notify-restricted");
   const guard = createMasterAuth(config.supabaseUrl, process.env.SUPABASE_PUBLISHABLE_KEY);
-  app.use("/api/v5", createPilotNotificationRouter({
-    requireMaster: guard, db: supabase,
-    sendMessage: sendWhatsAppMessage, enabled: true
+  app.use("/api/v5", createRestrictedPilotRouter({
+    requireMaster:guard, url:config.supabaseUrl,
+    publishableKey:process.env.SUPABASE_PUBLISHABLE_KEY,
+    pilotPhone:process.env.NAVE_PILOT_TEST_PHONE_E164,
+    sendMessage:sendWhatsAppMessage,enabled:true
   }));
 }
 
