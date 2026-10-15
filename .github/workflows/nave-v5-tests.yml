@@ -34,4 +34,6 @@ jobs:
           node --check core/reservation-plan.js
           node --check ../central-master-v4/master-auth.js
       - name: Unit and HTTP test suite
+        env:
+          NODE_PATH: ${{ github.workspace }}/nave/node_modules
         run: node --test core/*.test.js ../central-master-v4/master-auth.test.js
