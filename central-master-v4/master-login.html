@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>NAVE | Acesso Master V5 (staging)</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#081320;color:#f5f8fc;--mint:#70e6c7}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 85% 0,#153750,transparent 50%),#081320;padding:22px}
+main{width:100%;max-width:440px;padding:32px;border:1px solid #294359;border-radius:24px;background:linear-gradient(145deg,#14273b,#101f32);box-shadow:0 20px 60px #0005}
+.logo{font-size:30px;font-weight:900;letter-spacing:.14em;color:var(--mint)}small{color:#a1b7c9}h1{font-size:25px;margin:25px 0 8px}p{color:#a1b7c9;line-height:1.6;font-size:13px}
+label{display:block;margin:18px 0 7px;font-size:13px}input{width:100%;padding:14px;background:#0b1b2b;color:white;border:1px solid #36536a;border-radius:12px;font:inherit}
+button{width:100%;background:var(--mint);color:#082c2c;border:0;border-radius:12px;padding:14px;font-weight:800;margin-top:22px;cursor:pointer}button:disabled{opacity:.6;cursor:not-allowed}
+section[hidden]{display:none}#notice{min-height:20px}footer{font-size:11px;color:#94aabb;margin-top:24px;line-height:1.5}
+</style></head><body><main><div class="logo">NAVE</div><small>CENTRAL MASTER · ACESSO ADMINISTRATIVO</small>
+<h1>Segurança Master</h1><p>Acesso reservado. MFA obrigatório para administradores. Ambiente V5 de desenvolvimento, não publicado.</p>
+<section id="login"><form id="loginForm"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="loginButton" type="submit">Entrar com segurança</button></form></section>
+<section id="mfa" hidden><form id="mfaForm"><label for="code">Código de 6 dígitos do autenticador</label><input id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+<button type="submit">Validar MFA</button></form></section>
+<section id="enroll" hidden><p>Para continuar, cadastre um aplicativo autenticador usando o QR Code e confirme o código.</p><div id="qr"></div><form id="enrollForm"><label for="enrollCode">Código do autenticador</label><input id="enrollCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required><button type="submit">Ativar MFA</button></form></section>
+<section id="complete" hidden><p>Sua identidade administrativa foi validada com MFA. A Central permanece bloqueada até a integração das rotas protegidas no servidor.</p><button id="exit" type="button">Encerrar sessão</button></section>
+<p id="notice" role="status" aria-live="polite"></p><footer>Não é o painel operacional. Nenhuma aprovação, pagamento ou corrida comercial pode ser realizada nesta tela.</footer>
+</main><script src="./master-config.js"></script><script type="module" src="./master-login.js"></script></body></html>
