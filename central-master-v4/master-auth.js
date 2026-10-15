@@ -1,6 +1,6 @@
 "use strict";
 // V5 isolated auth middleware. Not mounted in the WhatsApp service.
-const { createClient } = require(require.resolve("@supabase/supabase-js", { paths: [__dirname, "../nave"] }));
+const { createClient } = require(require("node:module").createRequire(require("node:path").resolve(__dirname, "../nave/package.json")).resolve("@supabase/supabase-js"));
 
 function createMasterAuth(url, publishableKey, makeClient = createClient) {
   if (!url || !publishableKey) throw new Error("Missing Supabase configuration");
