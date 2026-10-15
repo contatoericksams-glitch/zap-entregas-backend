@@ -39,3 +39,33 @@ jobs:
         env:
           NODE_PATH: ${{ github.workspace }}/nave/node_modules
         run: node --test core/*.test.js ../central-master-v4/master-auth.test.js
+
+  staging-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check staging HTTPS and safety flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://nave-v5-homologacao.onrender.com"
+          for attempt in 1 2 3 4; do
+            if curl --silent --show-error --fail --max-time 50 "$BASE/healthz" -o /tmp/nave-health.json; then break; fi
+            sleep 8
+          done
+          node -e '
+            const fs=require("fs");
+            const d=JSON.parse(fs.readFileSync("/tmp/nave-health.json","utf8"));
+            if(d.commercialRidesEnabled!==false || d.integrationReady!==false) process.exit(1);
+            console.log("Staging health OK; commercial and WhatsApp integrations disabled");
+          '
+          curl --silent --show-error --fail --max-time 50 "$BASE/api/v5/status" -o /tmp/nave-v5-status.json
+          node -e '
+            const fs=require("fs");
+            const d=JSON.parse(fs.readFileSync("/tmp/nave-v5-status.json","utf8"));
+            if(d.commercialRidesEnabled!==false || d.persistenceEnabled!==false || d.channelIntegrationEnabled!==false) process.exit(1);
+            console.log("V5 preview API OK, read-only simulation");
+          '
+          curl --silent --show-error --fail --max-time 50 "$BASE/pilot-app-test.html" -o /tmp/nave-pilot.html
+          grep -q "NAVE" /tmp/nave-pilot.html
+          echo "Pilot HTML present (outbound test disabled)"
