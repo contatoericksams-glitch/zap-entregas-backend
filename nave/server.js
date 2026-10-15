@@ -182,7 +182,7 @@ if (process.env.NODE_ENV === "staging") {
     const configured = {
       supabase: Boolean(config.supabaseUrl && process.env.SUPABASE_PUBLISHABLE_KEY),
       adminPublicKey: Boolean(process.env.SUPABASE_PUBLISHABLE_KEY),
-      metaSender: Boolean(config.phoneNumberId && config.accessToken && /^\\+[1-9][0-9]{7,14}$/.test(process.env.NAVE_PILOT_TEST_PHONE_E164 || "")),
+      metaSender: Boolean(config.phoneNumberId && config.accessToken && /^\+[1-9][0-9]{7,14}$/.test(process.env.NAVE_PILOT_TEST_PHONE_E164 || "")),
       optIn: process.env.NAVE_APP_PILOT_TEST_ENABLED === "true"
     };
     res.set("Cache-Control", "no-store").json({
