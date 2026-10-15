@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>NAVE | Teste de notificação do piloto</title>
+<style>body{font:16px system-ui;background:#081523;color:#f4fcff;padding:24px;max-width:520px;margin:30px auto}main{padding:28px;background:#13273a;border:1px solid #315067;border-radius:22px}h1{color:#77e6c8}label{display:block;margin:16px 0 5px}input,button{box-sizing:border-box;width:100%;padding:13px;border-radius:10px;font:inherit}input{background:#081523;color:white;border:1px solid #42627b}button{background:#77e6c8;color:#09252b;font-weight:bold;border:0;margin-top:18px}button:disabled{opacity:.45}p{line-height:1.6}#status{font-size:14px;color:#b7d5e3}</style></head>
+<body><main><h1>NAVE ⚡ Piloto</h1><strong>TESTE TÉCNICO — NÃO SE DESLOQUE</strong>
+<p>Essa página apenas testa o recebimento de uma notificação no WhatsApp do piloto ONLINE. Não cria corrida, nem gera aceite ou cobrança.</p>
+<form id="login"><label>E-mail administrativo</label><input id="email" type="email" autocomplete="username" required><label>Senha</label><input id="password" type="password" autocomplete="current-password" required><button>Entrar</button></form>
+<form id="mfa" hidden><label>Código do aplicativo autenticador</label><input id="code" inputmode="numeric" pattern="[0-9]{6}" required><button>Validar MFA</button></form>
+<button id="notify" hidden>Enviar notificação fictícia ao piloto ONLINE</button><button id="logout" hidden>Sair da sessão</button>
+<p id="status" role="status"></p><small>Uma mensagem a cada cinco minutos por instância. O motorista precisa ter interagido com o WhatsApp nas últimas 23 horas. Operação comercial desabilitada.</small></main>
+<script src="/pilot-test-config.js"></script><script type="module">
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2.49.0";
+const $=id=>document.getElementById(id);
+const config=window.NAVE_TEST_PUBLIC_CONFIG;
+let client=null,factor=null;
+function status(s){$("status").textContent=s}
+function show(id){for(const k of ["login","mfa","notify","logout"])$(k).hidden=true;$(id).hidden=false;if(id==="notify")$("logout").hidden=false;}
+if(!config?.supabaseUrl||!config?.publishableKey){status("Configuração pública do ambiente de testes pendente.");$("login").querySelector("button").disabled=true;}
+else{client=createClient(config.supabaseUrl,config.publishableKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});}
+async function verify(){const level=await client.auth.mfa.getAuthenticatorAssuranceLevel();if(level.error)throw level.error;
+const role=await client.rpc("nave_is_admin");if(role.error||role.data!==true)throw Error("Sem permissão administrativa");
+if(level.data.currentLevel==="aal2"){show("notify");status("Autenticação e MFA confirmados.");return;}
+const factors=await client.auth.mfa.listFactors();if(factors.error)throw factors.error;
+factor=factors.data.totp?.find(x=>x.status==="verified")?.id;if(!factor)throw Error("Configure o MFA da conta antes de usar esta página.");
+show("mfa");status("Informe o código do autenticador.");
+}
+$("login").onsubmit=async e=>{e.preventDefault();try{const r=await client.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});$("password").value="";if(r.error)throw r.error;await verify()}catch(_){status("Falha no login ou conta sem permissão.");}};
+$("mfa").onsubmit=async e=>{e.preventDefault();try{const c=await client.auth.mfa.challenge({factorId:factor});if(c.error)throw c.error;const v=await client.auth.mfa.verify({factorId:factor,challengeId:c.data.id,code:$("code").value});if(v.error)throw v.error;await verify()}catch(_){status("MFA inválido ou indisponível.");}};
+$("notify").onclick=async()=>{const b=$("notify");b.disabled=true;try{const s=await client.auth.getSession();if(!s.data.session)throw Error();const r=await fetch("/api/v5/pilot-notification-test",{method:"POST",headers:{"authorization":"Bearer "+s.data.session.access_token,"content-type":"application/json"},body:JSON.stringify({confirm:"SIMULACAO_SEM_DESLOCAMENTO"})});if(r.status===202)status("Notificação técnica solicitada. Confira o WhatsApp do piloto.");else status("Teste não enviado (HTTP "+r.status+"). Verifique piloto ONLINE, autorização e configuração do ambiente.");}catch(_){status("Não foi possível enviar o teste.");}finally{b.disabled=false;}};
+$("logout").onclick=async()=>{await client.auth.signOut();show("login");status("Sessão encerrada.");};
+</script></body></html>
