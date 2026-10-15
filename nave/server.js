@@ -175,8 +175,9 @@ if (process.env.NODE_ENV === "staging") {
 }
 
 // V5 staging-only pilot notification: off by default and requires MFA admin login.
-if (process.env.NAVE_APP_PILOT_TEST_ENABLED === "true" &&
-    process.env.SUPABASE_PUBLISHABLE_KEY && supabase) {
+if (process.env.NODE_ENV === "staging" &&
+    process.env.NAVE_APP_PILOT_TEST_ENABLED === "true" &&
+    process.env.SUPABASE_PUBLISHABLE_KEY && config.phoneNumberId && config.accessToken && supabase) {
   const { createMasterAuth } = require("../central-master-v4/master-auth");
   const { createPilotNotificationRouter } = require("./core/pilot-notify");
   const guard = createMasterAuth(config.supabaseUrl, process.env.SUPABASE_PUBLISHABLE_KEY);
