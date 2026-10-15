@@ -71,6 +71,10 @@ jobs:
           curl --silent --show-error --fail --max-time 50 "$BASE/pilot-app-test.html" -o /tmp/nave-pilot.html
           grep -q "NAVE" /tmp/nave-pilot.html
           echo "Pilot HTML present (outbound test disabled)"
+          # Inbound webhook must stay forbidden in homologation regardless of credentials.
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/webhook")" = "404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/webhook")" = "404"
+          echo "Staging Meta webhook isolated (GET and POST blocked)"
           curl --silent --show-error --fail --max-time 50 "$BASE/api/v5/pilot-readiness" -o /tmp/nave-pilot-readiness.json
           node -e '
             const fs=require("fs");
