@@ -69,3 +69,14 @@ jobs:
           curl --silent --show-error --fail --max-time 50 "$BASE/pilot-app-test.html" -o /tmp/nave-pilot.html
           grep -q "NAVE" /tmp/nave-pilot.html
           echo "Pilot HTML present (outbound test disabled)"
+          curl --silent --show-error --fail --max-time 50 "$BASE/api/v5/pilot-readiness" -o /tmp/nave-pilot-readiness.json
+          node -e '
+            const fs=require("fs");
+            const d=JSON.parse(fs.readFileSync("/tmp/nave-pilot-readiness.json","utf8"));
+            if(d.environment!=="staging" || d.notificationReady!==false ||
+               d.optIn!==false || d.metaSender!==false || d.commercialRidesEnabled!==false)
+              process.exit(1);
+            if(!["supabase","adminPublicKey","metaSender","optIn"].every(k=>typeof d[k]==="boolean"))
+              process.exit(1);
+            console.log("Pilot notification remains safely disabled; credential readiness evaluated without secrets");
+          '
