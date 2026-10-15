@@ -31,3 +31,22 @@ test("rejects malformed request and unexpected channel", async () => {
   assert.equal((await request({channel:"public",category:"eco",distanceMeters:1000,durationSeconds:60})).status, 400);
   assert.equal((await request({channel:"web",category:"eco",distanceMeters:-1,durationSeconds:60})).status, 400);
 });
+
+test("pilot preview endpoint returns no dispatch and no persistence", async () => {
+  const app = express();
+  app.use("/api/v5", createPreviewRouter());
+  const server = http.createServer(app);
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const response = await fetch("http://127.0.0.1:" + server.address().port + "/api/v5/pilot-offer-preview", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ channel:"app",category:"confort",pickupLabel:"Centro",destinationLabel:"Lago",distanceMeters:5000,durationSeconds:600 })
+    });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.whatsappSendEnabled, false);
+    assert.equal(data.persistEnabled, false);
+    assert.equal(data.driverDispatchEnabled, false);
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});

@@ -3,6 +3,7 @@
 // Not mounted in nave/server.js. All route metrics are caller-supplied and unverified.
 const express = require("express");
 const { previewTestQuote, CATEGORY_CODES } = require("./ride-contract");
+const { preparePilotOfferPreview } = require("./pilot-offer-preview");
 
 function createPreviewRouter() {
   const router = express.Router();
@@ -27,6 +28,20 @@ function createPreviewRouter() {
     } catch (error) {
       if (error instanceof RangeError || error instanceof TypeError)
         return res.status(400).json({ error: "invalid_quote_input" });
+      return res.sendStatus(503);
+    }
+  });
+  // Safe local-only preview: never sends WhatsApp, stores rides, or calls Supabase.
+  router.post("/pilot-offer-preview", express.json({ limit: "4kb" }), (req, res) => {
+    try {
+      const body = req.body;
+      if (!body || typeof body !== "object" || Array.isArray(body))
+        return res.status(400).json({ error: "invalid_request" });
+      const preview = preparePilotOfferPreview(body);
+      return res.status(200).json(preview);
+    } catch (error) {
+      if (error instanceof RangeError || error instanceof TypeError)
+        return res.status(400).json({ error: "invalid_pilot_preview" });
       return res.sendStatus(503);
     }
   });
