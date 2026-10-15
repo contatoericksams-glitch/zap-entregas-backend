@@ -1,12 +1,7 @@
 "use strict";
 
 // Fluxo de testes; nenhum despacho nem cobrança é possível neste módulo.
-const categoryRates = Object.freeze({
-  eco: { base: 3.5, km: 1.65, min: 0.2 },
-  confort: { base: 4.4, km: 1.95, min: 0.22 },
-  executive: { base: 6.4, km: 3.1, min: 0.48 },
-  navegator: { base: 7.2, km: 3.4, min: 0.55 },
-});
+const { CATEGORY_CODES, previewTestQuote } = require("./core/ride-contract");
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const geoCache = new Map();
 let geocodeQueue = Promise.resolve();
@@ -94,11 +89,7 @@ async function getRoute(a, b) {
   return { distance, duration };
 }
 function estimate(category, route) {
-  const rate = categoryRates[category];
-  if (!rate) return null;
-  const km = route.distance / 1000;
-  const mins = route.duration / 60;
-  return Math.round(100 * (rate.base + km * rate.km + mins * rate.min));
+  return previewTestQuote({ category, distanceMeters: route.distance, durationSeconds: route.duration }).fareCents;
 }
 function categoryCode(text) {
   const s = simple(text);
@@ -239,7 +230,7 @@ function createPassengerFlow(supabase, onTestQuote) {
       const c = errorCheck(await supabase.from("nave_ride_categories")
         .select("code,title,electric_only,booking_enabled").eq("electric_only",true)
         .eq("visible_in_preview", true).order("display_order"), "get_categories");
-      const rows = (c || []).filter(x => categoryRates[x.code] && x.booking_enabled === false);
+      const rows = (c || []).filter(x => CATEGORY_CODES.includes(x.code) && x.booking_enabled === false);
       if (rows.length !== 4) return "NAVE ⚡ Catálogo de categorias indisponível temporariamente. Digite CANCELAR e tente novamente.";
       const prices = rows.map((cat, i) =>
         String(i + 1) + " — " + cat.title + ": *" + brl.format(estimate(cat.code,route)/100) + "*"
