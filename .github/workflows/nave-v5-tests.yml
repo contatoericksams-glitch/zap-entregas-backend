@@ -24,8 +24,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install test dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install test dependencies with transient-network retries
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund --fetch-retries=3 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=60000 || \
+          npm install --ignore-scripts --no-audit --no-fund --fetch-retries=3
       - name: Syntax validation
         run: |
           node --check server.js
