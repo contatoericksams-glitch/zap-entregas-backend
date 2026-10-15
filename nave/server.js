@@ -168,4 +168,16 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
+// V5 staging-only pilot notification: off by default and requires MFA admin login.
+if (process.env.NAVE_APP_PILOT_TEST_ENABLED === "true" &&
+    process.env.SUPABASE_PUBLISHABLE_KEY && supabase) {
+  const { createMasterAuth } = require("../central-master-v4/master-auth");
+  const { createPilotNotificationRouter } = require("./core/pilot-notify");
+  const guard = createMasterAuth(config.supabaseUrl, process.env.SUPABASE_PUBLISHABLE_KEY);
+  app.use("/api/v5", createPilotNotificationRouter({
+    requireMaster: guard, db: supabase,
+    sendMessage: sendWhatsAppMessage, enabled: true
+  }));
+}
+
 app.listen(config.port, "0.0.0.0", () => console.log("NAVE WhatsApp server ready"));
