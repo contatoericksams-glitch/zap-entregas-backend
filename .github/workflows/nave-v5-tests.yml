@@ -104,4 +104,7 @@ jobs:
         run: |
           PG_CONTAINER=$(docker ps --filter ancestor=postgres:16 --format '{{.ID}}' | head -1)
           test -n "$PG_CONTAINER"
-          docker exec -i "$PG_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < nave/core/migrations/003_local_rpc_test.sql
+          docker cp nave/core/migrations/002_pilot_test_status_DRAFT.sql "$PG_CONTAINER":/tmp/002_pilot_test_status_DRAFT.sql
+          sed "s@\\\\i nave/core/migrations/002_pilot_test_status_DRAFT.sql@\\\\i /tmp/002_pilot_test_status_DRAFT.sql@" nave/core/migrations/003_local_rpc_test.sql > /tmp/nave-local-test.sql
+          docker cp /tmp/nave-local-test.sql "$PG_CONTAINER":/tmp/nave-local-test.sql
+          docker exec "$PG_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/nave-local-test.sql
