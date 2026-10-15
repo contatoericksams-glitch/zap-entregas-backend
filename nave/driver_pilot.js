@@ -3,7 +3,13 @@
 // NAVE: distribuição EXCLUSIVAMENTE SIMULADA para piloto opt-in.
 // Nunca chama motoristas aprovados para prestação de serviço nem inicia corridas comerciais.
 const EIGHT = /^[0-9a-f]{8}$/i;
-const TEST_CATEGORY = "confort";
+const TEST_CATEGORIES = Object.freeze({
+  eco: "NAVE Eco",
+  confort: "NAVE Confort",
+  executive: "NAVE Executive",
+  navegator: "NAVEGATOR",
+});
+// Only fictitious offers. This does not certify a physical vehicle for all ride categories.
 const TEST_OFFER_MILLIS = 180000;
 const WHATSAPP_TEST_WINDOW_MILLIS = 23 * 60 * 60 * 1000;
 const BUTTON_ONLINE = "nave_pilot_online_v1";
@@ -94,7 +100,7 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
       }
       return availabilityMenu({...channel,availability_state},
         availability_state === "online"
-          ? "✅ Você está *ONLINE* para ofertas *SIMULADAS* de NAVE Confort."
+          ? "✅ Você está *ONLINE* para ofertas *SIMULADAS* de Eco, Confort, Executive e NAVEGATOR."
           : "✅ Você está *OFFLINE*. Não receberá novas ofertas de teste.");
     }
     if (text === "STATUS PILOTO" || text === "MENU PILOTO") {
@@ -123,7 +129,7 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
     const ride = dataOrThrow(await supabase.from("nave_wa_ride_requests")
       .select("id,status,quote_is_test_only,passenger_contact_id,category_code")
       .eq("id",offer.ride_request_id).single(), "request");
-    if (ride.quote_is_test_only!==true || ride.category_code!==TEST_CATEGORY || ride.status!=="quoted") return "NAVE ⚡ Oferta indisponível. Nenhuma corrida real foi iniciada.";
+    if (ride.quote_is_test_only!==true || !Object.hasOwn(TEST_CATEGORIES,ride.category_code) || ride.status!=="quoted") return "NAVE ⚡ Oferta indisponível. Nenhuma corrida real foi iniciada.";
     if (action==="RECUSAR") {
       dataOrThrow(await supabase.from("nave_wa_driver_offers")
         .update({status:"declined",responded_at:now})
@@ -192,7 +198,7 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
       "\n\n⚠️ NÃO SE DESLOQUE. Nenhuma corrida real foi criada e não há cobrança.";
   }
   async function onQuote(requestId, passengerContactId, categoryCode) {
-    if (categoryCode!==TEST_CATEGORY) return;
+    if (!Object.hasOwn(TEST_CATEGORIES,categoryCode)) return false;
     const drivers=dataOrThrow(await supabase.from("nave_wa_driver_test_channels")
       .select("driver_id,phone_e164,last_inbound_at").eq("test_enabled",true)
       .eq("availability_state","online").eq("is_test_only",true).not("verified_at","is",null).limit(5),"active_pilots");
@@ -201,7 +207,7 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
     const ride=dataOrThrow(await supabase.from("nave_wa_ride_requests")
       .select("id,quote_is_test_only,status,category_code,pickup_label,destination_label,fare_quote_cents")
       .eq("id",requestId).single(),"ride_quote");
-    if (ride.quote_is_test_only!==true || ride.status!=="quoted" || ride.category_code!==TEST_CATEGORY) return;
+    if (ride.quote_is_test_only!==true || ride.status!=="quoted" || ride.category_code!==categoryCode) return false;
     for(const driver of drivers) {
       if (driver.phone_e164===passenger.phone_e164) continue; // Não mandar a própria oferta.
       if (!driver.last_inbound_at || Date.now()-new Date(driver.last_inbound_at).getTime()>WHATSAPP_TEST_WINDOW_MILLIS) continue;
