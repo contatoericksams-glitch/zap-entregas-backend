@@ -1,0 +1,37 @@
+name: NAVE Core V5 - Tests Only
+
+on:
+  push:
+    branches:
+      - nave-master-v5-dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-tests:
+    if: github.ref == 'refs/heads/nave-master-v5-dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: nave
+    steps:
+      - name: Checkout isolated V5 branch
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Syntax validation
+        run: |
+          node --check core/ride-contract.js
+          node --check core/preview-router.js
+          node --check core/channel-compat.js
+          node --check core/reservation-plan.js
+          node --check ../central-master-v4/master-auth.js
+      - name: Unit and HTTP test suite
+        run: node --test core/*.test.js ../central-master-v4/master-auth.test.js
