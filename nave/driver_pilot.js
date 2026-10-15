@@ -228,7 +228,7 @@ function createDriverPilot(supabase, sendWhatsAppMessage) {
       const offerId=offers[0].id;
       const suffix=offerId.slice(0,8).toUpperCase();
       const offerText="🧪 *NAVE — OFERTA DE CORRIDA SIMULADA*\n\n"+
-        "Piloto: "+profile.driver_code+"\nCategoria: NAVE Confort\n"+
+        "Piloto: "+profile.driver_code+"\nCategoria: "+TEST_CATEGORIES[categoryCode]+"\n"+
         "📍 Embarque: "+ride.pickup_label+"\n🏁 Destino: "+ride.destination_label+
         "\n💰 Tarifa ILUSTRATIVA: "+brl(ride.fare_quote_cents)+
         "\n\n*Toque em ACEITAR ou RECUSAR abaixo.*\n" +
