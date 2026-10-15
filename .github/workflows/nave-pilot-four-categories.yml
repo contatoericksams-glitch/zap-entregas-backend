@@ -1,0 +1,23 @@
+name: NAVE Pilot Four Categories - Isolated Tests
+on:
+  push:
+    branches: [nave-pilot-all-categories-test]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pilot-categories:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate syntax
+        run: |
+          node --check nave/driver_pilot.js
+          node --check nave/flow.js
+          node --check nave/pilot-categories.test.js
+      - name: Verify all four simulated categories and fail-closed conditions
+        run: node --test nave/pilot-categories.test.js
