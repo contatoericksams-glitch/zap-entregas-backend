@@ -174,6 +174,24 @@ if (process.env.NODE_ENV === "staging") {
   app.use("/api/v5", createPreviewRouter());
 }
 
+// Safe preflight: booleans only, never return tokens, phone numbers or identities.
+if (process.env.NODE_ENV === "staging") {
+  app.get("/api/v5/pilot-readiness", (_req, res) => {
+    const configured = {
+      supabase: Boolean(config.supabaseUrl && config.supabaseServiceRole),
+      adminPublicKey: Boolean(process.env.SUPABASE_PUBLISHABLE_KEY),
+      metaSender: Boolean(config.phoneNumberId && config.accessToken),
+      optIn: process.env.NAVE_APP_PILOT_TEST_ENABLED === "true"
+    };
+    res.set("Cache-Control", "no-store").json({
+      environment: "staging",
+      notificationReady: Object.values(configured).every(Boolean),
+      ...configured,
+      commercialRidesEnabled: false
+    });
+  });
+}
+
 // V5 staging-only pilot notification: off by default and requires MFA admin login.
 if (process.env.NODE_ENV === "staging" &&
     process.env.NAVE_APP_PILOT_TEST_ENABLED === "true" &&
