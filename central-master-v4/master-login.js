@@ -20,6 +20,11 @@ if (!cfg?.supabaseUrl || !cfg?.publishableKey) {
 async function authorize() {
   const { data: aal, error } = await state.client.auth.mfa.getAuthenticatorAssuranceLevel();
   if (error) throw error;
+  const role = await state.client.rpc("nave_is_admin");
+  if (role.error || role.data !== true) {
+    await state.client.auth.signOut();
+    return screen("login", "Conta sem acesso administrativo autorizado.");
+  }
   if (aal.currentLevel !== "aal2") {
     const { data: factors, error: fErr } = await state.client.auth.mfa.listFactors();
     if (fErr) throw fErr;
