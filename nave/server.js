@@ -168,6 +168,12 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
+// V5 staging API: local computations only, no persistence or outbound sends.
+if (process.env.NODE_ENV === "staging") {
+  const { createPreviewRouter } = require("./core/preview-router");
+  app.use("/api/v5", createPreviewRouter());
+}
+
 // V5 staging-only pilot notification: off by default and requires MFA admin login.
 if (process.env.NAVE_APP_PILOT_TEST_ENABLED === "true" &&
     process.env.SUPABASE_PUBLISHABLE_KEY && supabase) {
