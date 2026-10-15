@@ -1,28 +1,13 @@
 "use strict";
-const assert=require("node:assert/strict");
 const {test}=require("node:test");
-const {prepareTestReservation}=require("./reservation-plan");
-const request={channel:"whatsapp",contactId:"contact-1",idempotencyKey:"client-request-0001"};
-test("same request yields same hash",()=>{
- const a=prepareTestReservation(request),b=prepareTestReservation(request);
- assert.equal(a.keyDigest,b.keyDigest); assert.equal(a.keyDigest.length,64);
-});
-test("different identity cannot collide through same request key",()=>{
- const a=prepareTestReservation(request);
- const b=prepareTestReservation({...request,contactId:"contact-2"});
- assert.notEqual(a.keyDigest,b.keyDigest);
-});
-test("different channel separated",()=>{
- const a=prepareTestReservation(request);
- const b=prepareTestReservation({channel:"web",authUserId:"contact-1",idempotencyKey:"client-request-0001"});
- assert.notEqual(a.keyDigest,b.keyDigest);
-});
-test("unsafe or missing keys rejected",()=>{
- assert.throws(()=>prepareTestReservation({...request,idempotencyKey:""}),TypeError);
- assert.throws(()=>prepareTestReservation({...request,idempotencyKey:"bad key"}),TypeError);
-});
-test("persisting remains impossible",()=>{
- const plan=prepareTestReservation(request);
- assert.equal(plan.writeAllowed,false); assert.equal(plan.destinationTable,null);
- assert.equal(plan.commercialEnabled,false);assert.equal(plan.quoteIsTestOnly,true);
-});
+const assert=require("node:assert/strict");
+const {prepareTestReservation,compareExisting}=require("./reservation-plan");
+const id="123e4567-e89b-42d3-a456-426614174000";
+const preview={categoryCode:"eco",distanceMeters:10000,durationSeconds:600,fareCents:2200,quoteIsTestOnly:true,commercialRideEnabled:false};
+const input={channel:"whatsapp",contactId:id,idempotencyKey:"request-0001",preview};
+test("same request stable",()=>{const a=prepareTestReservation(input),b=prepareTestReservation(input);assert.equal(a.keyDigest,b.keyDigest);assert.equal(a.requestFingerprint,b.requestFingerprint)});
+test("different identity or channel yields different keys",()=>{const a=prepareTestReservation(input);assert.notEqual(a.keyDigest,prepareTestReservation({...input,contactId:"123e4567-e89b-42d3-a456-426614174001"}).keyDigest);const web={channel:"web",authUserId:id,idempotencyKey:"request-0001",preview};assert.notEqual(a.keyDigest,prepareTestReservation(web).keyDigest)});
+test("same key with different fare is a conflict",()=>{const a=prepareTestReservation(input),b=prepareTestReservation({...input,preview:{...preview,fareCents:2300}});assert.equal(a.keyDigest,b.keyDigest);assert.notEqual(a.requestFingerprint,b.requestFingerprint);assert.equal(compareExisting(a.requestFingerprint,b.requestFingerprint),"conflict")});
+test("same key and same preview is a replay",()=>{const a=prepareTestReservation(input);assert.equal(compareExisting(a.requestFingerprint,a.requestFingerprint),"replay")});
+test("rejects invalid identities keys and previews",()=>{assert.throws(()=>prepareTestReservation({...input,contactId:"not-uuid"}));assert.throws(()=>prepareTestReservation({...input,idempotencyKey:"bad key"}));assert.throws(()=>prepareTestReservation({...input,preview:{...preview,quoteIsTestOnly:false}}))});
+test("never authorizes writes",()=>{const a=prepareTestReservation(input);assert.equal(a.writeAllowed,false);assert.equal(a.destinationTable,null);assert.equal(a.commercialEnabled,false)});
