@@ -269,7 +269,7 @@ function createPassengerFlow(supabase, onTestQuote) {
       }).eq("id",req.id).eq("status","draft"),"save_quote");
       await updateState(contactId, "idle", null);
       let simulatedOfferSent = false;
-      if (typeof onTestQuote === "function" && chosen === "confort") {
+      if (typeof onTestQuote === "function" && Object.hasOwn(categoryRates,chosen)) {
         try {
           simulatedOfferSent = await onTestQuote(req.id, contactId, chosen);
         } catch (err) {
