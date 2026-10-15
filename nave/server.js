@@ -34,7 +34,7 @@ app.use(express.json({
   verify: (req, _res, buf) => { req.rawBody = Buffer.from(buf); },
 }));
 
-const canReceive = () => Boolean(supabase && config.verifyToken && config.appSecret && config.phoneNumberId && config.accessToken);
+const canReceive = () => process.env.NODE_ENV !== "staging" && Boolean(supabase && config.verifyToken && config.appSecret && config.phoneNumberId && config.accessToken);
 
 app.get("/", (_req, res) => res.status(200).type("text/plain").send("NAVE | Canal WhatsApp em preparacao. Nenhuma corrida comercial habilitada."));
 app.get("/healthz", (_req, res) => res.status(200).json({
@@ -45,6 +45,7 @@ app.get("/healthz", (_req, res) => res.status(200).json({
 }));
 
 app.get("/webhook", (req, res) => {
+  if (process.env.NODE_ENV === "staging") return res.sendStatus(404); // Never verify production webhooks in homologation.
   if (!config.verifyToken) return res.sendStatus(503);
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -157,6 +158,7 @@ async function processWebhook(payload) {
 }
 
 app.post("/webhook", async (req, res) => {
+  if (process.env.NODE_ENV === "staging") return res.sendStatus(404); // Never process production events in homologation.
   if (!canReceive()) return res.sendStatus(503);
   if (!validSignature(req)) return res.sendStatus(403);
   try {
