@@ -28,6 +28,8 @@ jobs:
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Syntax validation
         run: |
+          node --check server.js
+          node --check core/pilot-notify.js
           node --check core/ride-contract.js
           node --check core/preview-router.js
           node --check core/channel-compat.js
