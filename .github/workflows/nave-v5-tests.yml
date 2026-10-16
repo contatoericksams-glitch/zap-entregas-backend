@@ -49,6 +49,7 @@ jobs:
           node --check core/nearest-pilot-http.test.js
           node --check core/preview-router.js
           node --check core/shared-journey-ui.test.js
+          node --check core/macro-qa-batches.test.js
           node --check core/channel-compat.js
           node --check core/reservation-plan.js
           node --check ../central-master-v4/master-auth.js
@@ -270,3 +271,5 @@ jobs:
           docker cp nave/core/migrations/006_shared_journey_lab_DRAFT.sql "$PG_CONTAINER":/tmp/nave-shared-lab-migration.sql
           docker cp nave/core/migrations/006_shared_journey_lab_isolated_test.sql "$PG_CONTAINER":/tmp/nave-shared-lab-test.sql
           docker exec "$PG_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/nave-shared-lab-test.sql
+          docker cp nave/core/migrations/008_macro_qa_isolated_test.sql "$PG_CONTAINER":/tmp/nave-macro-qa-test.sql
+          docker exec "$PG_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/nave-macro-qa-test.sql
