@@ -17,6 +17,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PttService extends Service {
     public interface Listener {
         void onStatus(String status, boolean connected, boolean talking, String speaker, String[] names);
+        default void onChannels(String[] ids, String[] names, String[][] rosters, String selected) {}
+        default void onRoom(String channel, String[] roster, boolean[] online, String speaker) {}
+        default void onLevel(int level) {}
     }
     public class LocalBinder extends Binder { public PttService getService() { return PttService.this; } }
     private final IBinder binder = new LocalBinder();
@@ -32,6 +35,11 @@ public class PttService extends Service {
     private volatile boolean playing, connected, talking, held, stopped = true;
     private volatile String status = "Desconectado", speaker;
     private volatile String[] names = new String[0];
+    private volatile String selectedChannel = "ch01";
+    private volatile String[] channelIds = new String[0], channelNames = new String[0];
+    private volatile String[][] channelRosters = new String[0][];
+    private volatile String[] roomNames = new String[0];
+    private volatile boolean[] roomOnline = new boolean[0];
     private String url, code, userName;
     private int retries = 0;
 
@@ -65,11 +73,38 @@ public class PttService extends Service {
         String s=status, who=speaker;
         boolean c=connected, t=talking;
         String[] n=names;
-        handler.post(() -> l.onStatus(s,c,t,who,n));
+        String[] ids=channelIds, channelTitles=channelNames, room=roomNames; boolean[] online=roomOnline;
+        String[][] channelMembers=channelRosters; String active=selectedChannel;
+        handler.post(() -> {
+            l.onStatus(s,c,t,who,n);
+            if(ids.length>0)l.onChannels(ids,channelTitles,channelMembers,active);
+            if(room.length>0)l.onRoom(active,room,online,who);
+        });
     }
     private void update(String value) {
         status=value;
         for(Listener l: listeners) notifyOne(l);
+    }
+    private void emitVoiceLevel(byte[] pcm, int size) {
+        long total=0;
+        int samples=0;
+        for(int i=0;i+1<size;i+=2) {
+            int v=(short)((pcm[i]&255)|((pcm[i+1]&255)<<8));
+            total+=(long)v*v;
+            samples++;
+        }
+        int level=samples==0?0:(int)Math.min(100, Math.sqrt((double)total/samples)/220);
+        for(Listener listener:listeners)handler.post(()->listener.onLevel(level));
+    }
+    public void changeChannel(String id) {
+        if(!connected || id==null || id.equals(selectedChannel))return;
+        held=false; stopRecording(); audio.clear();
+        WebSocket ws=socket;
+        if(ws!=null) {
+            try {
+                ws.send(new JSONObject().put("type","switch").put("channel",id).toString());
+            }catch(Exception e){update("Falha ao mudar canal");}
+        }
     }
     public synchronized void connect(String address, String secret, String name) {
         stopped=false;
@@ -91,6 +126,7 @@ public class PttService extends Service {
                         join.put("type","join");
                         join.put("code",code);
                         join.put("name",userName);
+                        join.put("channel",selectedChannel);
                         ws.send(join.toString());
                     } catch(JSONException e) { update("Não foi possível entrar"); }
                 }
@@ -98,6 +134,7 @@ public class PttService extends Service {
                 @Override public void onMessage(WebSocket ws, ByteString data) {
                     if(connected && !talking) {
                         byte[] pcm=data.toByteArray();
+                        emitVoiceLevel(pcm,pcm.length);
                         if(!audio.offer(pcm)) { audio.poll(); audio.offer(pcm); }
                     }
                 }
@@ -109,6 +146,8 @@ public class PttService extends Service {
                 }
                 @Override public void onFailure(WebSocket ws, Throwable error, Response response) {
                     if(socket != ws) return;
+                    String detail=error==null?"":String.valueOf(error.getMessage());
+                    Log.w("RadioFamiliaV2","WebSocket falhou: "+detail);
                     connectionEnded("Sem conexão. Reconectando...",false);
                 }
             });
@@ -120,21 +159,54 @@ public class PttService extends Service {
             switch(p.optString("type")) {
                 case "joined":
                     connected=true; retries=0;
+                    selectedChannel=p.optString("channel","ch01");
+                    JSONArray channels=p.optJSONArray("channels");
+                    if(channels!=null) {
+                        channelIds=new String[channels.length()];
+                        channelNames=new String[channels.length()];
+                        channelRosters=new String[channels.length()][];
+                        for(int i=0;i<channels.length();i++) {
+                            JSONObject ch=channels.optJSONObject(i);
+                            if(ch==null)continue;
+                            channelIds[i]=ch.optString("id");
+                            channelNames[i]=ch.optString("name");
+                            JSONArray roster=ch.optJSONArray("users");
+                            channelRosters[i]=new String[roster==null?0:roster.length()];
+                            for(int j=0;j<channelRosters[i].length;j++)channelRosters[i][j]=roster.optString(j);
+                        }
+                    }
                     startPlaying();
                     handler.removeCallbacks(heartbeat);
                     handler.postDelayed(heartbeat,15000);
-                    update("Canal conectado");
+                    update("Pronto para falar");
                     break;
-                case "state":
+                case "switched":
+                    selectedChannel=p.optString("channel",selectedChannel);
+                    speaker=null; roomNames=new String[0];roomOnline=new boolean[0];
+                    names=new String[0];audio.clear(); update("Canal alterado");
+                    break;
+                case "room_state":
+                    if(!selectedChannel.equals(p.optString("channel")))break;
                     JSONArray a=p.optJSONArray("participants");
                     if(a!=null) {
-                        String[] v=new String[a.length()];
-                        for(int i=0;i<a.length();i++) v[i]=a.optString(i);
-                        names=v;
+                        String[] all=new String[a.length()];
+                        boolean[] online=new boolean[a.length()];
+                        java.util.ArrayList<String> connectedNames=new java.util.ArrayList<>();
+                        for(int i=0;i<a.length();i++) {
+                            JSONObject part=a.optJSONObject(i);
+                            all[i]=part==null?"":part.optString("name");
+                            online[i]=part!=null&&part.optBoolean("online");
+                            if(online[i])connectedNames.add(all[i]);
+                        }
+                        roomNames=all;roomOnline=online;
+                        names=connectedNames.toArray(new String[0]);
                     }
                     speaker=p.isNull("speaker") ? null : p.optString("speaker",null);
                     if(talking && speaker==null) stopRecording();
-                    update(speaker==null?"Pronto para falar":speaker+" está falando");
+                    update(talking?"Transmitindo...":speaker==null?"Pronto para falar":speaker+" está falando");
+                    break;
+                case "error":
+                    update(p.optString("message","Erro no canal"));
                     break;
                 case "granted":
                     if(held) startRecording(); else sendControl("release");
@@ -155,7 +227,7 @@ public class PttService extends Service {
     }
     private void connectionEnded(String message, boolean fatal) {
         connected=false; held=false; stopRecording(); stopPlaying();
-        speaker=null; names=new String[0];
+        speaker=null; names=new String[0];roomNames=new String[0];roomOnline=new boolean[0];
         handler.removeCallbacks(heartbeat);
         if(fatal) stopped=true;
         update(message);
@@ -199,8 +271,10 @@ public class PttService extends Service {
                     try { n=input.read(frame,0,frame.length); }
                     catch(Exception e) { break; }
                     WebSocket ws=socket;
-                    if(n>0 && recording.get() && ws!=null)
+                    if(n>0 && recording.get() && ws!=null) {
+                        emitVoiceLevel(frame,n);
                         ws.send(ByteString.of(Arrays.copyOf(frame,n)));
+                    }
                 }
             },"radio-microfone");
             recordThread.start();
@@ -274,7 +348,7 @@ public class PttService extends Service {
         stopped=true; handler.removeCallbacks(heartbeat);
         held=false; stopRecording(); stopPlaying();
         if(socket!=null) { socket.close(1000,"Saindo"); socket=null; }
-        connected=false; speaker=null; names=new String[0]; update("Desconectado");
+        connected=false; speaker=null; names=new String[0];roomNames=new String[0];roomOnline=new boolean[0]; update("Desconectado");
     }
     @Override public void onDestroy() {
         disconnect();
