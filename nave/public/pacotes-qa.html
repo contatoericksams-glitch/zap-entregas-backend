@@ -1,0 +1,193 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#071826">
+<title>NAVE · Centro de Testes em Lote</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui,-apple-system,Arial,sans-serif;background:#071826;color:#eafbf9}
+*{box-sizing:border-box}body{margin:0;padding:22px 14px 55px}main{max-width:1050px;margin:0 auto}
+.eyebrow{color:#82eacd;letter-spacing:.15em;font-size:12px;font-weight:900}
+h1{font-size:clamp(1.8rem,5vw,2.6rem);margin:11px 0 8px}h2{margin:0;font-size:1.2rem}
+p{color:#b8d2de;line-height:1.55}a{color:#95efd7}
+.panel{background:#112f41;border:1px solid #365a70;border-radius:20px;padding:20px;margin-top:16px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{background:#092331;border-radius:12px;padding:15px;text-align:center}
+.metric strong{display:block;font-size:1.6rem;color:#91f1d4}
+.metric span{font-size:.76rem;color:#bdd4dd}
+button{border:0;border-radius:12px;background:#7febce;color:#062625;font:inherit;font-weight:850;padding:14px 18px;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.secondary{background:#34566d;color:white}
+small{color:#b2ccd6}
+.chip{display:inline-block;background:#245249;color:#d7fff0;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:800}
+table{border-collapse:collapse;width:100%;font-size:.92rem}td,th{border-bottom:1px solid #34546b;padding:13px 8px;text-align:left}th{color:#c4e2e5}
+td:last-child{text-align:right;font-weight:750}
+.pass{color:#84f4c7}.fail{color:#ff9aaa}.waiting{color:#acc4d2}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+#log{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;font-size:.76rem;max-height:280px;overflow:auto;color:#c2e4de;background:#071b28;border-radius:12px;padding:12px}
+.note{border-left:3px solid #7febce;background:#153c48;padding:12px 15px;border-radius:10px}
+@media(max-width:650px){.summary{grid-template-columns:repeat(2,1fr)}.panel{padding:14px}table{font-size:.76rem}td,th{padding:10px 4px}}
+</style></head><body><main>
+<div class="eyebrow">NAVE · PLANO MESTRE DE CRIAÇÃO · MACRO-QA V5</div>
+<h1>Pacotes de testes em lote ⚡</h1>
+<p>Em vez de testar botão por botão, execute <strong>cinco pacotes de uma vez</strong>. Esta página só chama a API de <strong>jornada fictícia</strong>; não acessa WhatsApp, localização real, pagamento nem grava viagens. Cada execução gera um relatório na tela.</p>
+<span class="chip">LABORATÓRIO · SEM CORRIDAS COMERCIAIS</span>
+<div class="panel">
+ <div class="summary">
+  <div class="metric"><strong id="passes">0</strong><span>Verificações aprovadas</span></div>
+  <div class="metric"><strong id="fails">0</strong><span>Falhas encontradas</span></div>
+  <div class="metric"><strong id="completed">0/5</strong><span>Pacotes executados</span></div>
+  <div class="metric"><strong id="duration">—</strong><span>Tempo decorrido</span></div>
+ </div>
+ <div class="controls">
+  <button id="run">▶ Executar os 5 pacotes</button>
+  <button class="secondary" id="reset">Limpar resultados</button>
+ </div>
+ <div class="note" id="state" role="status" aria-live="polite">Pronto para testar. Nenhuma solicitação real será criada.</div>
+</div>
+<div class="panel">
+ <h2>Matriz automática</h2>
+ <p>O painel verifica as quatro categorias (Eco, Confort, Executive e NAVEGATOR), inclusive todos os três cenários de disponibilidade.</p>
+ <table><thead><tr><th>Pacote</th><th>Critério verificado</th><th>Resultado</th></tr></thead>
+ <tbody>
+ <tr><td>P01</td><td>12 combinações: categoria × disponibilidade</td><td id="r1" class="waiting">Aguardando</td></tr>
+ <tr><td>P02</td><td>4 jornadas completas: solicitação → finalização</td><td id="r2" class="waiting">Aguardando</td></tr>
+ <tr><td>P03</td><td>Recusa e distribuição para próximo piloto elegível</td><td id="r3" class="waiting">Aguardando</td></tr>
+ <tr><td>P04</td><td>Cancelamento antes do embarque em 3 fases</td><td id="r4" class="waiting">Aguardando</td></tr>
+ <tr><td>P05</td><td>Erros, parâmetros inválidos e bloqueio comercial</td><td id="r5" class="waiting">Aguardando</td></tr>
+ </tbody></table>
+</div>
+<div class="panel">
+ <h2>Relatório da execução</h2>
+ <p>Falhas são exibidas por cenário, sem ocultar o resultado. Nada aqui substitui um teste entre duas contas de verdade.</p>
+ <div id="log" aria-live="off">Aguardando execução…</div>
+</div>
+<div class="panel">
+ <h2>Testes complementares de homologação</h2>
+ <p><strong>Banco, MFA, concorrência e expiração:</strong> são executados no PostgreSQL descartável do GitHub Actions, não por esta página. O teste de duas telas com a mesma conta administrativa permanece separado, pois depende de um navegador autenticado com MFA.</p>
+ <p><a href="/jornada-compartilhada.html">Abrir laboratório persistente de duas telas</a> · <a href="https://github.com/contatoericksams-glitch/zap-entregas-backend/actions/workflows/nave-v5-tests.yml">Ver testes de CI</a></p>
+ <p><strong>PMC:</strong> o percentual só aumenta quando os critérios de módulos forem comprovados e homologados; repetir testes fictícios não transforma o aplicativo em produção.</p>
+</div>
+</main><script>
+"use strict";
+const $=id=>document.getElementById(id);
+const categories=["eco","confort","executive","navegator"],scenarios=["normal","first_busy","no_route"];
+const expectedFare={eco:1300,confort:1543,executive:2549,navegator:2842};
+let running=false,passed=0,failed=0,done=0,startTime=0,lines=[];
+function show(){
+ $("passes").textContent=String(passed);$("fails").textContent=String(failed);
+ $("completed").textContent=done+"/5";
+ $("duration").textContent=startTime?((performance.now()-startTime)/1000).toFixed(1)+" s":"—";
+ $("log").textContent=lines.slice(-100).join("\n")||"Nenhum teste iniciado.";
+}
+function assert(cond,label){
+ if(!cond){failed++;lines.push("❌ "+label);throw Error(label);}
+ passed++;
+}
+function checkSafe(d){
+ assert(d?.simulation===true,"Modo de simulação");
+ assert(d?.testOnly===true,"Somente teste");
+ assert(d?.commercialRidesEnabled===false,"Sem corridas comerciais");
+ assert(d?.whatsappSendEnabled===false,"Sem WhatsApp");
+ assert(d?.persistenceEnabled===false,"Sem gravação de viagem");
+ assert(d?.paymentsEnabled===false,"Sem cobrança");
+ assert(d?.realGpsUsed===false,"Sem localização real");
+ assert(d?.externalRoutingEnabled===false,"Sem chamada OSRM");
+ assert(d?.routeSource==="synthetic-fixture","Motoristas totalmente fictícios");
+}
+async function api(input,success=true){
+ const c=new AbortController();const timer=setTimeout(()=>c.abort(),10000);
+ try{
+  const resp=await fetch("/api/v5/journey-lab",{
+   method:"POST",cache:"no-store",credentials:"omit",
+   headers:{"content-type":"application/json"},body:JSON.stringify(input),signal:c.signal
+  });
+  assert(resp.status===(success?200:400),"HTTP "+(success?200:400));
+  const data=await resp.json();
+  if(success)checkSafe(data);
+  return data;
+ }finally{clearTimeout(timer)}
+}
+function expectedDriver(category,scenario){
+ if(scenario==="no_route")return null;
+ if(scenario==="first_busy")return ["eco","confort"].includes(category)?"DEMO-ALFA":null;
+ return "DEMO-BETA";
+}
+const start=async(cat,scenario="normal")=>api({action:"start",category:cat,scenario});
+const next=async(d,action)=>api({action,state:d.state});
+const packs=[
+ async()=>{
+  for(const cat of categories)for(const scenario of scenarios){
+   const d=await start(cat,scenario),driver=expectedDriver(cat,scenario);
+   assert(d.categoryCode===cat,"Categoria "+cat);
+   assert(d.driverId===driver,"Motorista "+cat+"/"+scenario);
+   assert(d.fareCents===expectedFare[cat],"Tarifa ilustrativa "+cat);
+   assert(d.phase===(driver?"offer_pending":"no_driver"),"Elegibilidade "+cat+"/"+scenario);
+  }
+ },
+ async()=>{
+  for(const cat of categories){
+   let d=await start(cat);
+   for(const [act,phase] of [["accept","driver_to_pickup"],["arrive","at_pickup"],["board","in_trip"],["complete","completed"]]){
+    d=await next(d,act);assert(d.phase===phase,"Transição "+cat+"/"+act);
+   }
+   assert(d.offerPreview===null,"Oferta encerrada "+cat);
+  }
+ },
+ async()=>{
+  for(const cat of categories){
+   let d=await start(cat);d=await next(d,"decline");
+   const second=["eco","confort"].includes(cat);
+   assert(d.driverId===(second?"DEMO-ALFA":null),"Redistribuição "+cat);
+   if(second)d=await next(d,"decline");
+   assert(d.phase==="no_driver","Sem candidato ao final "+cat);
+  }
+ },
+ async()=>{
+  for(const cat of categories)for(let phase=0;phase<3;phase++){
+   let d=await start(cat);
+   for(const a of ["accept","arrive"].slice(0,phase))d=await next(d,a);
+   d=await next(d,"cancel");
+   assert(d.phase==="cancelled","Cancelamento "+cat+" fase "+phase);
+  }
+ },
+ async()=>{
+  for(const invalid of [
+    {action:"start",category:"commercial",scenario:"normal"},
+    {action:"start",category:"eco",scenario:"outside"},
+    {action:"start",category:"eco",scenario:"normal",phone:"000"},
+    {action:"accept",state:null},
+    {action:"board",state:{}}
+  ])await api(invalid,false);
+  const d=await start("eco");
+  await api({action:"complete",state:d.state},false);
+  assert(d.offerPreview?.includes("NÃO SE DESLOQUE")===true,"Aviso de oferta fictícia");
+ }
+];
+async function run(){
+ if(running)return;running=true;passed=0;failed=0;done=0;lines=[];startTime=performance.now();
+ $("run").disabled=true;$("reset").disabled=true;
+ for(let i=1;i<=5;i++){$("r"+i).textContent="Aguardando";$("r"+i).className="waiting"}
+ $("state").textContent="Executando lote isolado, sem transações comerciais…";show();
+ for(let i=0;i<packs.length;i++){
+  try{
+   lines.push("▶ P0"+(i+1));
+   await packs[i]();$("r"+(i+1)).textContent="APROVADO";$("r"+(i+1)).className="pass";
+   lines.push("✅ P0"+(i+1)+" aprovado.");
+  }catch(e){
+   $("r"+(i+1)).textContent="FALHOU";$("r"+(i+1)).className="fail";
+   lines.push("❌ P0"+(i+1)+" interrompido: "+String(e?.message||e));
+   if(failed===0)failed++;
+  }
+  done++;show();
+ }
+ $("state").textContent=failed===0?
+ "✅ Cinco pacotes aprovados. Apenas laboratório fictício; nenhum critério de operação final foi automaticamente homologado.":
+ "⚠️ O lote encontrou "+failed+" falha(s). Verifique os detalhes e não considere os módulos homologados.";
+ running=false;$("run").disabled=false;$("reset").disabled=false;show();
+}
+$("run").onclick=()=>void run();
+$("reset").onclick=()=>{
+ if(running)return;passed=0;failed=0;done=0;startTime=0;lines=[];
+ for(let i=1;i<=5;i++){$("r"+i).textContent="Aguardando";$("r"+i).className="waiting"}
+ $("state").textContent="Resultados limpos. Pronto para nova rodada.";show();
+};
+</script></body></html>
