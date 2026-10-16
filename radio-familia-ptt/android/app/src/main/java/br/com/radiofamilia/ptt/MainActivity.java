@@ -76,7 +76,7 @@ public class MainActivity extends Activity implements PttService.Listener {
         LinearLayout header=line();
         LinearLayout heading=column();
         TextView title=label("RÁDIO FAMÍLIA",27,WHITE,true);
-        heading.addView(title);heading.addView(label("TÁTICO MATRIX  •  COMUNICAÇÃO DIGITAL",10,GREEN,true));
+        heading.addView(title);heading.addView(label("TÁTICO MATRIX  •  CANAIS COM PIN 4 DÍGITOS",10,GREEN,true));
         header.addView(heading,new LinearLayout.LayoutParams(0,-2,1f));
         TextView gear=label("⚙",27,GREEN,true);gear.setGravity(Gravity.CENTER);
         gear.setBackground(back(PANEL,Color.rgb(39,78,52),12));
@@ -102,6 +102,21 @@ public class MainActivity extends Activity implements PttService.Listener {
         channelsContainer=line();horizontal.addView(channelsContainer);
         LinearLayout.LayoutParams h=new LinearLayout.LayoutParams(-1,dp(73));h.topMargin=dp(9);
         channels.addView(horizontal,h);
+        LinearLayout actions=line();
+        TextView create=label("＋ CRIAR CANAL",13,GREEN,true);
+        create.setGravity(Gravity.CENTER);
+        create.setPadding(dp(10),dp(13),dp(10),dp(13));
+        create.setBackground(back(Color.rgb(9,46,27),Color.rgb(35,147,75),12));
+        actions.addView(create,new LinearLayout.LayoutParams(0,dp(48),1));
+        space(actions,new View(this),10);
+        TextView enter=label("⌗ ENTRAR COM PIN",13,WHITE,true);
+        enter.setGravity(Gravity.CENTER);
+        enter.setPadding(dp(10),dp(13),dp(10),dp(13));
+        enter.setBackground(back(PANEL,Color.rgb(51,91,66),12));
+        actions.addView(enter,new LinearLayout.LayoutParams(0,dp(48),1));
+        create.setOnClickListener(v->openCreateChannel());
+        enter.setOnClickListener(v->openJoinChannel());
+        full(channels,actions,10);
         full(root,channels,11);
 
         LinearLayout status=card();
@@ -148,8 +163,8 @@ public class MainActivity extends Activity implements PttService.Listener {
         full(root,settingsButton,13);
         settingsPanel=card();
         full(settingsPanel,label("SERVIDOR",11,MUTED,true),2);
-        addressField=edit("Servidor","https://radio-familia-v2-matrix.onrender.com",false);
-        addressField.setText(getPreferences(0).getString("url","https://radio-familia-v2-matrix.onrender.com"));
+        addressField=edit("Servidor","https://radio-familia-v2-pin4.onrender.com",false);
+        addressField.setText(getPreferences(0).getString("url","https://radio-familia-v2-pin4.onrender.com"));
         full(settingsPanel,addressField,6);
         full(settingsPanel,label("CÓDIGO FAMILIAR",11,MUTED,true),13);
         secretField=edit("Código de acesso",getPreferences(0).getString("code",""),true);
@@ -170,6 +185,73 @@ public class MainActivity extends Activity implements PttService.Listener {
         ptt.setEnabled(false);
         bindService(new Intent(this,PttService.class),serviceConnection,Context.BIND_AUTO_CREATE);
         requestPermissions();
+    }
+    private void openCreateChannel(){
+        if(!connected || radio==null) {
+            Toast.makeText(this,"Ligue o rádio e aguarde o canal conectar",Toast.LENGTH_LONG).show();
+            return;
+        }
+        EditText entry=edit("Ex.: Equipe de Monitoria","",false);
+        entry.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(48)});
+        LinearLayout container=column();
+        container.setPadding(dp(18),dp(8),dp(18),0);
+        full(container,entry,0);
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Criar canal privado")
+            .setMessage("Será criado um PIN aleatório de 4 números para convidar outra pessoa. No piloto, a sala é temporária.")
+            .setView(container)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Criar",(dialog,which)->{
+                String name=entry.getText().toString().trim();
+                if(name.length()<3){
+                    Toast.makeText(this,"Use pelo menos 3 letras no nome",Toast.LENGTH_LONG).show();
+                    return;
+                }
+                radio.createChannel(name);
+            }).show();
+    }
+    private void openJoinChannel(){
+        if(!connected || radio==null) {
+            Toast.makeText(this,"Ligue o rádio primeiro",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        EditText entry=edit("0000","",false);
+        entry.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        entry.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(4)});
+        LinearLayout container=column();
+        container.setPadding(dp(18),dp(8),dp(18),0);
+        full(container,entry,0);
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Entrar em um canal")
+            .setMessage("Digite o PIN de 4 números enviado pelo criador da sala.")
+            .setView(container)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Entrar",(dialog,which)->{
+                String pin=entry.getText().toString();
+                if(!pin.matches("[0-9]{4}")) {
+                    Toast.makeText(this,"O PIN deve ter exatamente 4 números",Toast.LENGTH_LONG).show();
+                    return;
+                }
+                radio.joinChannel(pin);
+            }).show();
+    }
+    @Override public void onPinCreated(String title,String pin){
+        runOnUiThread(()->{
+            if(isFinishing())return;
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("Canal criado: "+title)
+                .setMessage("PIN de convite: "+pin+
+                    "\n\nCompartilhe apenas com quem deve entrar. Anote: a sala e o PIN são temporários no plano de testes.")
+                .setPositiveButton("Copiar PIN",(dialog,which)->{
+                    android.content.ClipboardManager manager=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+                    manager.setPrimaryClip(android.content.ClipData.newPlainText("PIN do canal",pin));
+                    Toast.makeText(this,"PIN copiado",Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Fechar",null).show();
+        });
+    }
+    @Override public void onChannelJoined(String title){
+        runOnUiThread(()->Toast.makeText(this,"Entrada autorizada: "+title,Toast.LENGTH_LONG).show());
     }
     private void requestPermissions(){
         ArrayList<String> perms=new ArrayList<>();
