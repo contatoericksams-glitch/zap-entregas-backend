@@ -92,8 +92,8 @@ jobs:
           grep -Fq "Jornada compartilhada" /tmp/nave-shared-lab.html
           grep -Fq "nave_v5_lab_snapshot" /tmp/nave-shared-lab.html
           grep -Fq "mesma conta administrativa com MFA" /tmp/nave-shared-lab.html
-          grep -Fq "Migração" /tmp/nave-shared-lab.html || grep -Fq "migração" /tmp/nave-shared-lab.html
-          echo "Shared lab page present; SQL remains separately approval-gated"
+          grep -Fq "tabelas isoladas do laboratório estão instaladas" /tmp/nave-shared-lab.html
+          echo "Shared lab page present; SQL installed, manual cross-browser validation still pending"
 
           curl --silent --show-error --fail --max-time 50 \
             -X POST -H 'Content-Type: application/json' \
