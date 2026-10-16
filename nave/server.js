@@ -183,6 +183,8 @@ if (process.env.NODE_ENV === "staging" && config.supabaseUrl && process.env.SUPA
   const { createRoadEtaRouter } = require("./core/road-eta-router");
   const requireMaster = createMasterAuth(config.supabaseUrl, process.env.SUPABASE_PUBLISHABLE_KEY);
   app.use("/api/v5", createRoadEtaRouter({requireMaster}));
+  const { createSmartDispatchOsrmRouter } = require("./core/smart-dispatch-osrm-router");
+  app.use("/api/v5", createSmartDispatchOsrmRouter({requireMaster}));
 }
 
 // Safe preflight: booleans only, never return tokens, phone numbers or identities.
