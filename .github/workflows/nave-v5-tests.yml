@@ -85,6 +85,12 @@ jobs:
           grep -Fq "Ponto escolhido no mapa" /tmp/nave-gps.html
           grep -Fq "p_pickup_lat:pickup.lat,p_pickup_lng:pickup.lng" /tmp/nave-gps.html
           grep -Fq "Usar ponto fictício a cerca de 2 km" /tmp/nave-gps.html
+          grep -Fq "Calcular distância pelas ruas e tempo estimado" /tmp/nave-gps.html
+          grep -Fq "routingConsent" /tmp/nave-gps.html
+          grep -Fq "/api/v5/road-eta-preview" /tmp/nave-gps.html
+          # The route proxy must reject unauthenticated users before calling a third-party provider.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"simulation":true,"consentExternalRouting":true}' "$BASE/api/v5/road-eta-preview")" = "401"
+          echo "Road ETA page loaded; unauthenticated third-party routing blocked"
           grep -q "start\").disabled=true" /tmp/nave-gps.html
           echo "Pilot GPS page available and start disabled before approved RPC"
           curl --silent --show-error --fail --max-time 50 "$BASE/radar-demo.html" -o /tmp/nave-radar.html
