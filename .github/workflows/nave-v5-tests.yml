@@ -88,6 +88,14 @@ jobs:
           curl --silent --show-error --fail --max-time 50 "$BASE/jornada-integrada.html" -o /tmp/nave-journey.html
           grep -Fq "Jornada integrada" /tmp/nave-journey.html
           grep -Fq "/api/v5/journey-lab" /tmp/nave-journey.html
+          # One-click batch test dashboard must be published and fail closed.
+          curl --silent --show-error --fail --max-time 50 "$BASE/pacotes-qa.html" -o /tmp/nave-batch-qa.html
+          grep -Fq "Executar os 5 pacotes" /tmp/nave-batch-qa.html
+          grep -Fq "P01" /tmp/nave-batch-qa.html
+          grep -Fq "P05" /tmp/nave-batch-qa.html
+          grep -Fq 'd?.commercialRidesEnabled===false' /tmp/nave-batch-qa.html
+          grep -Fq 'd?.whatsappSendEnabled===false' /tmp/nave-batch-qa.html
+          echo "Macro-QA dashboard published and limited to fictional lab API"
           # Persistent lab is staged as UI only until explicit permission to apply SQL migrations.
           curl --silent --show-error --fail --max-time 50 "$BASE/jornada-compartilhada.html" -o /tmp/nave-shared-lab.html
           grep -Fq "Jornada compartilhada" /tmp/nave-shared-lab.html
