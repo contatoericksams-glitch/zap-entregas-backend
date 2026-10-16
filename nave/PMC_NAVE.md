@@ -1,5 +1,5 @@
 # NAVE — PLANO MESTRE DE CRIAÇÃO (PMC)
-**PMC v0.7 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
+**PMC v0.8 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
 
 ## 1. Identidade, escopo e comandos
 
@@ -19,7 +19,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 | Marco GPS — localização autorizada | Validado em celular | NAVE-0001 com GPS e 2.004 m até embarque fictício |
 | Marco Rotas — ETA pelas ruas | Validado em celular | OSRM ~2,69 km e ~6 min; não considera trânsito |
 | Marco SmartDispatch — multi-pilotos | Simulador construído e testado | Pontos de motoristas fictícios; sem despacho real |
-| Marco Laboratório de Jornada Fictícia | **Validado visualmente** | Passageiro solicita → oferta DEMO-BETA → aceita → chega ao embarque → embarque → finaliza, conforme sequência de capturas enviada pelo proprietário em 16/10/2026; sem dados persistidos |\n| Marco Estado Persistente de Teste | **Estrutura instalada, homologação humana pendente** | Tabelas e RPCs de sessões fictícias no Supabase, testes isolados e limpeza ativa; simulação entre dois navegadores ainda não confirmada em campo |
+| Marco Laboratório de Jornada Fictícia | **Validado visualmente** | Passageiro solicita → oferta DEMO-BETA → aceita → chega ao embarque → embarque → finaliza, conforme sequência de capturas enviada pelo proprietário em 16/10/2026; sem dados persistidos |\n| Marco Estado Persistente de Teste | **Homologado em escopo DEMO** | Confirmação humana de jornada em segunda janela + sequência `start → accept → arrive → board → complete`, `phase=completed`, versão 5 no Supabase; ambas as janelas usam a mesma conta administrativa MFA |
 | Marco Jornada Integrada Real | **Pendente** | Integração entre sessões independentes, banco, motorista e passageiro ainda não homologada |
 | Marco Homologação V1 | Pendente | Recursos finais e operação segura |
 | **MC — NASCIMENTO OFICIAL** | **BLOQUEADO / NÃO EXECUTADO** | Apenas após versão final e `EXECUTAR O MC` |
@@ -287,7 +287,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 
 **Prioridade P0:** blocos críticos para operação final. **Prioridade P1:** operação, resiliência, suporte e controles necessários à homologação.
 
-**Próximo sprint — homologação concentrada:** (a) executar o lote P01–P05 na tela `/pacotes-qa.html` com um clique; (b) validar P09 entre dois navegadores com a mesma conta administrativa MFA e evidências de sincronização; (c) registrar critérios de módulo realmente concluídos, sem pontuação por testes repetidos; (d) implementar autenticação real separada de passageiro/motorista e jornada completa; (e) preservar isolamento de WhatsApp, GPS e cobranças.
+**Próximo sprint — integração funcional:** (a) especificar contas e sessões independentes de passageiro e motorista com autorização granular; (b) implementar fluxo seguro de reserva idempotente e ofertas com expiração; (c) validar jornada entre dois aparelhos/contas reais em homologação sem corrida comercial; (d) planejar cancelamento, histórico e comprovantes; (e) preservar isolamento WhatsApp, GPS e cobranças até nova autorização.
 
 **Testes em pacotes:** [Plano MACRO-QA](./QA_PACOTES_MASTER.md) — P01–P05 no painel e Node, P06–P08 em PostgreSQL 16 temporário no GitHub, P09 humano de duas telas. Nenhuma bateria de banco executa cargas no Supabase operacional.
 
@@ -312,5 +312,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 - **Versão 0.6 / 16/10/2026 — MACRO-QA:** criados pacotes P01–P09, suíte extensiva Node `core/macro-qa-batches.test.js`, suíte SQL `core/migrations/008_macro_qa_isolated_test.sql`, teste de segurança da UI `core/macro-qa-ui.test.js` e painel de execução única `public/pacotes-qa.html`. Matriz das 4 categorias, 3 situações, jornadas, recusas, preços, cancelamentos, HTTP, MFA, estado persistente, controle de versão, quota e expiração. CI automatizada na branch V5 aprovada com cinco jobs. Testes de banco somente no PostgreSQL temporário; P09 entre dois navegadores ainda exige homologação manual. **Progresso permanece 47/100 (47%)**: testar mais não altera os critérios finais ainda não entregues. **MC NÃO EXECUTADO**.
 
 - **Versão 0.7 / 16/10/2026 — execução efetiva dos macropacotes:** após comando **“execute”**, rodados **P01–P05 contra a API fictícia publicada na homologação** via workflow específico de GitHub Actions [38928889079](https://github.com/contatoericksams-glitch/zap-entregas-backend/actions/runs/38928889079). Evidência: **5/5 pacotes aprovados, 885 verificações aprovadas, 0 falhas, 85 requisições HTTP**. A mesma execução concluiu **6/6 jobs com sucesso**, inclusive PostgreSQL temporário para P06–P08, testes do núcleo, GPS e smoke HTTPS. **P09 (sessões humanas com MFA em duas telas) ainda não homologado.** Relatório detalhado: [`QA_EXECUTION_LOG.md`](./QA_EXECUTION_LOG.md). **Módulos e progresso mantidos em 47/100 (47%)**; cobertura de testes, por si só, não satisfaz critérios finais de integração real. **MC NÃO EXECUTADO**.
+
+- **Versão 0.8 / 16/10/2026 — P09 homologado no laboratório:** após orientação para abrir a mesma sessão em outra janela, o proprietário declarou que a jornada funcionou. Conferência de leitura no Supabase NAVE comprovou `phase=completed`, `version=5` e eventos `start → accept → arrive → board → complete`. **P09 homologado somente para duas janelas de DEMO usando a mesma conta administrativa MFA**; o banco, isoladamente, não demonstra quem clicou em cada janela. Não implica motoristas/passageiros autenticados independentemente nem viagem operacional. **Progresso PMC: 47/100 (47%)**, pois nenhum critério do app final foi encerrado. MC não executado. Evidência no [registro MACRO-QA](./QA_EXECUTION_LOG.md).
 
 **Regra de update:** a cada `ATUALIZE O PMC`, recontar checkboxes e revisar provas; reportar `n/N`, `(n/N)*100`, itens concluídos, parcialidades, pendências e riscos. Nunca declarar `EXECUTAR O MC` sem comando literal do proprietário e homologação final.
