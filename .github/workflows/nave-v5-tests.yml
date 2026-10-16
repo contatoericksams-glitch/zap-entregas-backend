@@ -48,6 +48,7 @@ jobs:
           node --check core/nearest-pilot-preview.test.js
           node --check core/nearest-pilot-http.test.js
           node --check core/preview-router.js
+          node --check core/shared-journey-ui.test.js
           node --check core/channel-compat.js
           node --check core/reservation-plan.js
           node --check ../central-master-v4/master-auth.js
@@ -235,3 +236,29 @@ jobs:
           docker cp nave/core/migrations/004_pilot_gps_DRAFT.sql "$PG_CONTAINER":/tmp/nave-gps-migration.sql
           docker cp nave/core/migrations/004_pilot_gps_isolated_test.sql "$PG_CONTAINER":/tmp/nave-gps-test.sql
           docker exec "$PG_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/nave-gps-test.sql
+
+  postgres-shared-journey-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: fictional-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify security and idempotent journey state in temporary PostgreSQL
+        run: |
+          set -euo pipefail
+          PG_CONTAINER=$(docker ps --filter ancestor=postgres:16 --format '{{.ID}}' | head -1)
+          test -n "$PG_CONTAINER"
+          docker cp nave/core/migrations/006_shared_journey_lab_DRAFT.sql "$PG_CONTAINER":/tmp/nave-shared-lab-migration.sql
+          docker cp nave/core/migrations/006_shared_journey_lab_isolated_test.sql "$PG_CONTAINER":/tmp/nave-shared-lab-test.sql
+          docker exec "$PG_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/nave-shared-lab-test.sql
