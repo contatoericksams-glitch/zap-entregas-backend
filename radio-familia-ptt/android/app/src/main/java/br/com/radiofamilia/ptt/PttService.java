@@ -20,6 +20,8 @@ public class PttService extends Service {
         default void onChannels(String[] ids, String[] names, String[][] rosters, String selected) {}
         default void onRoom(String channel, String[] roster, boolean[] online, String speaker) {}
         default void onLevel(int level) {}
+        default void onPinCreated(String channelName, String pin) {}
+        default void onChannelJoined(String channelName) {}
     }
     public class LocalBinder extends Binder { public PttService getService() { return PttService.this; } }
     private final IBinder binder = new LocalBinder();
@@ -96,6 +98,35 @@ public class PttService extends Service {
         int level=samples==0?0:(int)Math.min(100, Math.sqrt((double)total/samples)/220);
         for(Listener listener:listeners)handler.post(()->listener.onLevel(level));
     }
+    private void sendRequest(JSONObject request) {
+        WebSocket ws=socket;
+        if(ws!=null && connected)ws.send(request.toString());
+    }
+    public void createChannel(String title) {
+        if(title==null || title.trim().length()<3 || title.trim().length()>48)return;
+        try {sendRequest(new JSONObject().put("type","channel_create").put("name",title.trim()));}
+        catch(JSONException e){update("Não foi possível criar canal");}
+    }
+    public void joinChannel(String pin) {
+        if(pin==null || !pin.matches("[0-9]{4}"))return;
+        try {sendRequest(new JSONObject().put("type","channel_join").put("pin",pin));}
+        catch(JSONException e){update("Não foi possível entrar no canal");}
+    }
+    private void refreshChannels(JSONArray channels) {
+        if(channels==null)return;
+        channelIds=new String[channels.length()];
+        channelNames=new String[channels.length()];
+        channelRosters=new String[channels.length()][];
+        for(int i=0;i<channels.length();i++){
+            JSONObject ch=channels.optJSONObject(i);
+            if(ch==null)continue;
+            channelIds[i]=ch.optString("id");
+            channelNames[i]=ch.optString("name");
+            JSONArray users=ch.optJSONArray("users");
+            channelRosters[i]=new String[users==null?0:users.length()];
+            for(int j=0;j<channelRosters[i].length;j++)channelRosters[i][j]=users.optString(j);
+        }
+    }
     public void changeChannel(String id) {
         if(!connected || id==null || id.equals(selectedChannel))return;
         held=false; stopRecording(); audio.clear();
@@ -160,25 +191,24 @@ public class PttService extends Service {
                 case "joined":
                     connected=true; retries=0;
                     selectedChannel=p.optString("channel","ch01");
-                    JSONArray channels=p.optJSONArray("channels");
-                    if(channels!=null) {
-                        channelIds=new String[channels.length()];
-                        channelNames=new String[channels.length()];
-                        channelRosters=new String[channels.length()][];
-                        for(int i=0;i<channels.length();i++) {
-                            JSONObject ch=channels.optJSONObject(i);
-                            if(ch==null)continue;
-                            channelIds[i]=ch.optString("id");
-                            channelNames[i]=ch.optString("name");
-                            JSONArray roster=ch.optJSONArray("users");
-                            channelRosters[i]=new String[roster==null?0:roster.length()];
-                            for(int j=0;j<channelRosters[i].length;j++)channelRosters[i][j]=roster.optString(j);
-                        }
-                    }
+                    refreshChannels(p.optJSONArray("channels"));
                     startPlaying();
                     handler.removeCallbacks(heartbeat);
                     handler.postDelayed(heartbeat,15000);
                     update("Pronto para falar");
+                    break;
+                case "channels":
+                    refreshChannels(p.optJSONArray("channels"));
+                    update(status);
+                    break;
+                case "channel_created":
+                    String generatedPin=p.optString("pin","");
+                    String createdName=p.optJSONObject("channel")==null?"Novo canal":p.optJSONObject("channel").optString("name","Novo canal");
+                    for(Listener listener:listeners)handler.post(()->listener.onPinCreated(createdName,generatedPin));
+                    break;
+                case "channel_joined":
+                    String joinedName=p.optJSONObject("channel")==null?"Canal":p.optJSONObject("channel").optString("name","Canal");
+                    for(Listener listener:listeners)handler.post(()->listener.onChannelJoined(joinedName));
                     break;
                 case "switched":
                     selectedChannel=p.optString("channel",selectedChannel);
