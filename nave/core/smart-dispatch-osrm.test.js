@@ -29,7 +29,7 @@ test("one OSRM table response ranks fictitious drivers by actual mocked-provider
  assert.equal(r.commercialRidesEnabled,false);
  assert.equal(r.persistenceEnabled,false);
  assert.equal(r.paymentsEnabled,false);
- assert.ok(r.ranked[0].straightLineMeters>r.ranked[1].straightLineMeters,"fastest need not be geographically closest");
+ assert.ok(r.ranked.find(d=>d.driverId==="DEMO-BETA").straightLineMeters > r.ranked.find(d=>d.driverId==="DEMO-ALFA").straightLineMeters,"fastest need not be geographically closest");
 });
 test("busy or category-incompatible pilots never enter route provider query",async()=>{
  let called=0;
