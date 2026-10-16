@@ -62,7 +62,7 @@ BEGIN
    END IF;
    SELECT count(*) INTO event_count FROM public.nave_v5_lab_events
     WHERE session_id=id;
-   IF event_count<>case when expected_driver is null then 1 else 5 end
+   IF event_count<>(case when expected_driver is null then 1 else 5 end)
     THEN RAISE EXCEPTION 'Events count inconsistent for % % : %',cat,scen,event_count;END IF;
   END LOOP;
  END LOOP;
