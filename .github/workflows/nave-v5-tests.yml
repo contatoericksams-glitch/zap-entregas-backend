@@ -98,6 +98,24 @@ jobs:
           echo "Pilot GPS page available and start disabled before approved RPC"
           curl --silent --show-error --fail --max-time 50 "$BASE/radar-demo.html" -o /tmp/nave-radar.html
           grep -q "Radar de despacho" /tmp/nave-radar.html
+          curl --silent --show-error --fail --max-time 50 "$BASE/smart-dispatch.html" -o /tmp/nave-smart-dispatch.html
+          grep -q "Quem chega primeiro" /tmp/nave-smart-dispatch.html
+          grep -q "routeSource:\"synthetic\"" /tmp/nave-smart-dispatch.html
+          SMART_NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          cat > /tmp/nave-smart-payload.json <<JSON
+          {"simulation":true,"routeSource":"synthetic","category":"eco","pickup":{"lat":-24.73,"lng":-53.744},"candidates":[{"id":"DEMO-SLOW","testOnly":true,"testEnabled":true,"verified":true,"electricVehicle":true,"online":true,"activeOffer":false,"locationSource":"simulated","positionUpdatedAt":"$SMART_NOW","categories":["eco"],"location":{"lat":-24.7303,"lng":-53.7441},"mockRoadRoute":{"roadDistanceMeters":3000,"etaSeconds":550}},{"id":"DEMO-FAST","testOnly":true,"testEnabled":true,"verified":true,"electricVehicle":true,"online":true,"activeOffer":false,"locationSource":"simulated","positionUpdatedAt":"$SMART_NOW","categories":["eco"],"location":{"lat":-24.738,"lng":-53.748},"mockRoadRoute":{"roadDistanceMeters":1600,"etaSeconds":280}}]}
+          JSON
+          curl --silent --show-error --fail --max-time 50 -H 'Content-Type: application/json' -d @/tmp/nave-smart-payload.json "$BASE/api/v5/smart-dispatch-preview" -o /tmp/nave-smart-result.json
+          node -e '
+            const d=JSON.parse(require("fs").readFileSync("/tmp/nave-smart-result.json","utf8"));
+            if(d.selected?.driverId!=="DEMO-FAST"||d.routeSource!=="synthetic"||
+               d.whatsappSendEnabled!==false||d.commercialRidesEnabled!==false||
+               d.persistenceEnabled!==false||d.paymentsEnabled!==false)
+              process.exit(1);
+            console.log("SmartDispatch: fastest fictitious ETA wins, no commercial effects");
+          '
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"simulation":true,"routeSource":"OSRM","category":"eco","pickup":{"lat":-24.73,"lng":-53.744},"candidates":[]}' "$BASE/api/v5/smart-dispatch-preview")" = "400"
+
           NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           cat > /tmp/nave-nearest-payload.json <<JSON
           {"simulation":true,"category":"eco","pickup":{"lat":-24.73,"lng":-53.74},"candidates":[{"id":"DEMO-TEST","location":{"lat":-24.731,"lng":-53.741},"positionUpdatedAt":"$NOW","locationSource":"simulated","testOnly":true,"testEnabled":true,"online":true,"verified":true,"electricVehicle":true,"activeOffer":false,"categories":["eco"]}]}
