@@ -1,0 +1,164 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#071826">
+<title>NAVE | Laboratório da Jornada Integrada</title>
+<style>
+:root{font:16px system-ui,-apple-system,"Segoe UI",sans-serif;color:#eafafa;background:#061825;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;padding:24px 15px 48px}
+main{max-width:980px;margin:0 auto}.brand{font-weight:900;font-size:12px;letter-spacing:.18em;color:#7ee8c8}
+h1{font-size:clamp(1.8rem,5vw,2.5rem);letter-spacing:-.04em;margin:12px 0}h2{font-size:1.17rem;margin:0 0 13px}
+p{color:#bed4de;line-height:1.55}small{color:#acc4cf}
+.tag{display:inline-block;color:#8ef4d5;border-radius:99px;padding:7px 12px;background:#1a4346;font-size:12px;font-weight:800}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.panel{border:1px solid #2e556b;border-radius:20px;background:#112d3e;padding:20px;margin:18px 0}
+.dark{background:#0a2131}.steps{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+.steps span{border:1px solid #325468;color:#a9c4d0;border-radius:99px;font-size:.76rem;padding:8px 11px}
+.steps span.current{border-color:#7ce7c3;background:#164b46;color:#e8fff7}
+button,select{font:inherit;border-radius:12px;outline-offset:3px}
+button{border:0;cursor:pointer;padding:14px 16px;font-weight:850;background:#7ce8ca;color:#08272e}
+button:disabled{opacity:.45;cursor:not-allowed}
+select{width:100%;background:#082333;border:1px solid #456a80;color:#f0fffc;padding:13px;margin-top:6px}
+label{display:block;font-weight:650;margin:15px 0 5px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:17px}
+.actions button{width:100%;font-size:.94rem}
+.secondary{background:#33566b;color:#f4fffd}
+.warning{background:#9b5060;color:#fff}
+.info{border-left:3px solid #7fe8c8;background:#173e4a;border-radius:10px;padding:13px 15px;margin-top:13px;line-height:1.55}
+.line{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0}
+.line span{color:#b6cfda}.line b{text-align:right}
+.divider{border:0;border-top:1px solid #34566b;margin:18px 0}
+.phone{background:#071c2c;border:1px solid #37566c;border-radius:21px;padding:17px}
+.phone header{display:flex;align-items:center;gap:10px;font-weight:800;margin-bottom:12px}
+.led{height:10px;width:10px;border-radius:50%;background:#87e7bf}
+.bubble{background:#214052;border:1px solid #3b6574;border-radius:18px 18px 18px 4px;padding:15px;line-height:1.55;white-space:pre-line}
+.hidden{display:none!important}
+#status{min-height:45px}
+footer{margin-top:24px;color:#a7c0cf;line-height:1.6;font-size:.83rem}
+@media(max-width:740px){.layout{grid-template-columns:1fr}.panel{padding:16px}.actions{grid-template-columns:1fr 1fr}}
+@media(max-width:390px){.actions{grid-template-columns:1fr}}
+</style></head><body><main>
+<div class="brand">NAVE · PMC · LABORATÓRIO V5</div>
+<h1>Jornada integrada <span aria-hidden="true">⚡</span></h1>
+<p>Do pedido de corrida até a conclusão, em uma única demonstração. <strong>Todos os passageiros, motoristas, valores e tempos aqui são fictícios.</strong> O laboratório não usa GPS, WhatsApp, banco de viagens nem pagamentos.</p>
+<span class="tag">SIMULAÇÃO ISOLADA · SEM OPERAÇÃO COMERCIAL</span>
+<div class="steps" aria-label="Etapas da demonstração">
+ <span id="step1" class="current">1 · Solicitar</span><span id="step2">2 · Oferta</span>
+ <span id="step3">3 · Deslocamento</span><span id="step4">4 · Embarque</span><span id="step5">5 · Conclusão</span>
+</div>
+<div class="layout">
+<section class="panel">
+ <h2><span aria-hidden="true">📱</span> Visão do passageiro</h2>
+ <div id="form">
+  <div class="line"><span>Embarque (teste)</span><b>Centro, Toledo</b></div>
+  <div class="line"><span>Destino (teste)</span><b>Região do Lago, Toledo</b></div>
+  <label for="category">Categoria</label>
+  <select id="category"><option value="eco">NAVE Eco</option><option value="confort">NAVE Confort</option><option value="executive">NAVE Executive</option><option value="navegator">NAVEGATOR</option></select>
+  <label for="scenario">Condição dos motoristas fictícios</label>
+  <select id="scenario"><option value="normal">Pilotos disponíveis</option><option value="first_busy">Piloto mais rápido ocupado</option><option value="no_route">Nenhuma rota confiável</option></select>
+  <button id="start" style="width:100%;margin-top:18px">Solicitar corrida FICTÍCIA</button>
+ </div>
+ <div id="tripPanel" class="hidden">
+  <div class="line"><span>Categoria</span><b id="tripCategory">—</b></div>
+  <div class="line"><span>Embarque</span><b>Centro, Toledo</b></div>
+  <div class="line"><span>Destino</span><b>Região do Lago, Toledo</b></div>
+  <div class="line"><span>Percurso estimado</span><b>4,3 km · 12 min (fictícios)</b></div>
+  <hr class="divider">
+  <div class="line"><span>Valor ilustrativo</span><b id="fare">—</b></div>
+  <div class="line"><span>Status do passageiro</span><b id="passengerState">—</b></div>
+  <div id="passengerMessage" class="info" role="status">Aguardando solicitação.</div>
+  <div class="actions"><button id="cancel" class="warning hidden">Cancelar simulação</button><button id="restart" class="secondary">Nova simulação</button></div>
+ </div>
+</section>
+<section class="panel">
+ <h2><span aria-hidden="true">🚘</span> Visão do motorista</h2>
+ <div class="phone">
+  <header><span class="led" aria-hidden="true"></span> NAVE · Motorista DEMO</header>
+  <div class="bubble" id="offerText">Nenhuma oferta fictícia recebida. Aguarde o passageiro iniciar a simulação.</div>
+  <div id="offerMetrics" class="hidden">
+   <hr class="divider"><div class="line"><span>Selecionado</span><b id="driverName">—</b></div>
+   <div class="line"><span>Chegada ao embarque</span><b id="driverEta">—</b></div>
+  </div>
+  <div class="actions">
+   <button id="accept" class="hidden">Aceitar (teste)</button>
+   <button id="decline" class="warning hidden">Recusar (teste)</button>
+   <button id="arrive" class="hidden">Cheguei ao embarque</button>
+   <button id="board" class="hidden">Confirmar embarque</button>
+   <button id="complete" class="hidden">Finalizar simulação</button>
+  </div>
+ </div>
+ <div class="info" id="status" role="status" aria-live="polite">Sem solicitações ativas. Nenhuma mensagem externa foi enviada.</div>
+</section>
+</div>
+<div class="panel dark">
+ <h2>O que estamos validando no PMC?</h2>
+ <p>O código de cotação da NAVE, o classificador SmartDispatch de pilotos fictícios e a máquina de estados de uma jornada foram conectados em um mesmo laboratório. Pode testar <strong>recusa e redistribuição</strong>, cancelamento e ausência de motorista.</p>
+ <p><strong>Limite:</strong> tudo é uma prévia de navegador. Não há reserva, pagamento, transação no Supabase, GPS real, confirmação do passageiro por WhatsApp ou viagem comercial. O progresso oficial do PMC só muda quando os critérios correspondentes forem integralmente homologados.</p>
+</div>
+<footer>Laboratório NAVE V5 em homologação. As ações não sobrevivem ao fechamento da aba. Os números de oferta e o valor não são utilizáveis comercialmente.</footer>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const buttons=["accept","decline","arrive","board","complete","cancel"];
+const names={eco:"NAVE Eco",confort:"NAVE Confort",executive:"NAVE Executive",navegator:"NAVEGATOR"};
+const statuses={offer_pending:"Aguardando motorista",driver_to_pickup:"Motorista a caminho",at_pickup:"Motorista chegou",in_trip:"Viagem fictícia em andamento",completed:"Viagem fictícia finalizada",cancelled:"Pedido cancelado",no_driver:"Nenhum motorista elegível"};
+let state=null,busy=false;
+function show(id,visible){$(id).classList.toggle("hidden",!visible)}
+function formatMoney(cents){return (cents/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+function render(data){
+ const phase=data.phase;state=data.state;show("form",false);show("tripPanel",true);
+ $("tripCategory").textContent=names[data.categoryCode]||data.categoryCode;
+ $("fare").textContent=formatMoney(data.fareCents);
+ $("passengerState").textContent=statuses[phase]||"Estado desconhecido";
+ $("passengerMessage").textContent=data.message;
+ $("status").textContent="Fase: "+(statuses[phase]||phase)+" · Somente teste · mensagens enviadas: 0.";
+ const driverPresent=Boolean(data.driverId);
+ show("offerMetrics",driverPresent);
+ $("driverName").textContent=data.driverId||"Nenhum piloto elegível";
+ $("driverEta").textContent=data.etaToPickupSeconds?Math.ceil(data.etaToPickupSeconds/60)+" min fictícios":"—";
+ const texts={
+  offer_pending:data.offerPreview||"Oferta fictícia disponível no laboratório.",
+  driver_to_pickup:"✅ Aceite simulado registrado na tela. Dirija apenas na simulação. NÃO SE DESLOQUE.",
+  at_pickup:"📍 Chegada fictícia ao embarque registrada. Aguarde o embarque simulado.",
+  in_trip:"🛣️ Trajeto fictício iniciado. Nenhum GPS real é utilizado.",
+  completed:"🏁 Jornada fictícia concluída. Nenhuma viagem ou cobrança foi registrada.",
+  no_driver:"⏳ Nenhum piloto de teste elegível. Nada foi disparado.",
+  cancelled:"✋ Simulação cancelada, sem custo e sem envio."
+ };
+ $("offerText").textContent=texts[phase]||"Simulação.";
+ buttons.forEach(id=>show(id,false));
+ show("accept",phase==="offer_pending");show("decline",phase==="offer_pending");
+ show("arrive",phase==="driver_to_pickup");show("board",phase==="at_pickup");
+ show("complete",phase==="in_trip");
+ show("cancel",["offer_pending","driver_to_pickup","at_pickup"].includes(phase));
+ const step=phase==="offer_pending"||phase==="no_driver"?2:phase==="driver_to_pickup"?3:
+  phase==="at_pickup"?4:["in_trip","completed"].includes(phase)?5:1;
+ for(let i=1;i<=5;i++)$("step"+i).classList.toggle("current",i===step);
+}
+async function call(action){
+ if(busy)return;busy=true;const start=action==="start";
+ const ids=start?["start"]:buttons;
+ for(const id of ids)$(id).disabled=true;
+ try{
+  const body=start?{action,category:$("category").value,scenario:$("scenario").value}:{action,state};
+  const r=await fetch("/api/v5/journey-lab",{method:"POST",cache:"no-store",
+   headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok)throw Error("Simulador indisponível");
+  const d=await r.json();
+  if(d.simulation!==true||d.testOnly!==true||d.commercialRidesEnabled!==false||
+     d.whatsappSendEnabled!==false||d.persistenceEnabled!==false||
+     d.paymentsEnabled!==false||d.realGpsUsed!==false||d.routeSource!=="synthetic-fixture")
+    throw Error("Unsafe simulation response");
+  render(d);
+ }catch(_){$("status").textContent="Não foi possível concluir esta etapa. Nenhuma corrida foi criada. Tente novamente ou reinicie."}
+ finally{busy=false;for(const id of ids)$(id).disabled=false}
+}
+$("start").onclick=()=>void call("start");
+for(const id of buttons)$(id).onclick=()=>void call(id);
+$("restart").onclick=()=>{
+ state=null;show("form",true);show("tripPanel",false);show("offerMetrics",false);
+ $("offerText").textContent="Nenhuma oferta fictícia recebida. Aguarde o passageiro iniciar a simulação.";
+ $("status").textContent="Laboratório reiniciado. Nenhuma corrida ou oferta real foi criada.";
+ for(let i=1;i<=5;i++)$("step"+i).classList.toggle("current",i===1);
+};
+</script></body></html>
