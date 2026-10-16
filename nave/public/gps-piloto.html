@@ -14,7 +14,12 @@ button:disabled{opacity:.55;cursor:not-allowed}.secondary{background:#345267;col
 .status{padding:12px 15px;border-radius:12px;background:#19394b;color:#d6ecf4;margin-top:16px;line-height:1.5}
 strong{color:white}.hint{font-size:.85rem;color:#b1cad5}.ok{color:#80f3d4}.warn{color:#ffcf86}
 .consent{display:flex;gap:10px;align-items:flex-start;margin:15px 0}.consent input{width:21px;height:21px;flex-shrink:0}
-#stop{background:#db495d;color:white}select{width:100%;background:#071c2a;color:#fff;border:1px solid #527386;border-radius:10px;padding:12px;font:inherit}
+#stop{background:#db495d;color:white}
+#pickupMap{height:290px;min-height:290px;border-radius:12px;border:1px solid #527386;margin:12px 0;background:#122d40}
+#pickupBox[hidden]{display:none}
+#pickupChoice{font-size:.89rem;line-height:1.45;color:#bde9dd;margin:10px 0}
+#checkRadar:disabled{opacity:.48}
+select{width:100%;background:#071c2a;color:#fff;border:1px solid #527386;border-radius:10px;padding:12px;font:inherit}
 </style></head><body><main>
 <div class="brand">NAVE • PILOTO GPS V5</div>
 <h1>Você controla sua localização ⚡</h1>
@@ -29,7 +34,14 @@ strong{color:white}.hint{font-size:.85rem;color:#b1cad5}.ok{color:#80f3d4}.warn{
  <button type="button" id="stop" hidden>PARAR GPS E APAGAR POSIÇÃO</button>
  <label id="radarLabel" for="radarCategory" hidden>Categoria para testar a proximidade</label>
  <select id="radarCategory" hidden><option value="eco">NAVE Eco</option><option value="confort">NAVE Confort</option><option value="executive">NAVE Executive</option><option value="navegator">NAVEGATOR</option></select>
- <button type="button" class="secondary" id="checkRadar" hidden>Verificar meu GPS no radar</button>
+ <section id="pickupBox" hidden>
+ <h2 style="margin:20px 0 6px;font-size:1.2rem">📍 Embarque fictício</h2>
+ <p class="hint">Toque em qualquer ponto no mapa de Toledo e arredores para simular onde um passageiro estaria. O mapa começa no centro da cidade, <strong>não</strong> na sua localização. Os mapas são fornecidos pelo OpenStreetMap.</p>
+ <div id="pickupMap" aria-label="Mapa interativo: selecione um ponto de embarque fictício"></div>
+ <p id="pickupChoice" role="status">Nenhum embarque escolhido. Toque em uma rua no mapa.</p>
+ <button type="button" class="secondary" id="pickupNearby">Usar ponto fictício a cerca de 2 km do meu GPS</button>
+ </section>
+ <button type="button" class="secondary" id="checkRadar" hidden disabled>Verificar distância até o embarque fictício</button>
  <button type="button" class="secondary" id="logout">Sair da conta</button>
 </div>
 <div class="status" id="status" role="status" aria-live="polite">GPS desligado. Nenhuma coordenada enviada.</div>
@@ -39,7 +51,7 @@ strong{color:white}.hint{font-size:.85rem;color:#b1cad5}.ok{color:#80f3d4}.warn{
  <p>Ao tocar em <strong>Começar</strong>, o celular solicitará permissão de localização. Apenas posições com precisão informada de até 100 metros serão aceitas pelo servidor. A autorização precisa ser explícita.</p>
  <p>A posição tem validade de <strong>120 segundos</strong> para o radar; depois disso não participa de seleções. Ao tocar em <strong>PARAR</strong>, solicitamos sua exclusão do banco.</p>
  <p class="warn"><strong>Atenção:</strong> esta página interrompe o GPS quando vai para segundo plano. Não funciona como rastreamento contínuo com o aplicativo fechado.</p>
- <p class="hint">O banco ainda exige aprovação da migração GPS antes do primeiro compartilhamento. Nenhum token ou localização é enviado ao ChatGPT.</p>
+ <p class="hint">A consulta do radar ocorre somente no Supabase, após sua autenticação. Distância em linha reta, sem cálculo de ruas ou tempo de chegada. Seu GPS não é desenhado no mapa nem repassado ao serviço de mapas.</p>
 </div>
 </main>
 <script src="/pilot-test-config.js"></script>
@@ -49,15 +61,59 @@ const $=id=>document.getElementById(id);
 const cfg=window.NAVE_TEST_PUBLIC_CONFIG;
 const status=msg=>{$("status").textContent=msg};
 let client=null,factor=null,watch=null,ticker=null,latest=null,sharing=false,lastSent=0,inflight=false;
+let writeInFlight=null,map=null,mapMarker=null,mapPromise=null,pickup=null;
+function validPickup(lat,lng){return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-26.5&&lat<=-24.4&&lng>=-55.7&&lng<=-52.4;}
+function resetPickup(){
+ pickup=null;$("checkRadar").disabled=true;$("pickupChoice").textContent="Nenhum embarque escolhido. Toque em uma rua no mapa.";
+ if(mapMarker&&map){map.removeLayer(mapMarker);mapMarker=null;}
+}
+function choosePickup(lat,lng,description){
+ if(!sharing||!validPickup(lat,lng)){$("pickupChoice").textContent="Escolha um ponto dentro da área de teste no Oeste do Paraná.";return;}
+ pickup={lat,lng};
+ $("pickupChoice").textContent=description+" · Ponto de EMBARQUE fictício. Nenhuma corrida será criada.";
+ $("checkRadar").disabled=false;
+ if(map&&window.L){
+  if(mapMarker)map.removeLayer(mapMarker);
+  mapMarker=window.L.marker([lat,lng]).addTo(map).bindPopup("Embarque de teste").openPopup();
+ }
+}
+function loadMapLibrary(){
+ if(window.L)return Promise.resolve(window.L);
+ if(mapPromise)return mapPromise;
+ mapPromise=new Promise((resolve,reject)=>{
+  const css=document.createElement("link");css.rel="stylesheet";css.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(css);
+  const js=document.createElement("script");js.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+  js.onload=()=>window.L?resolve(window.L):reject(Error("Leaflet unavailable"));
+  js.onerror=()=>reject(Error("Map provider unavailable"));document.head.appendChild(js);
+ });
+ return mapPromise;
+}
+async function showPickupMap(){
+ $("pickupBox").hidden=false;
+ try{
+  const L=await loadMapLibrary();
+  if(!sharing||document.hidden)return;
+  if(!map){
+   map=L.map("pickupMap",{zoomControl:true}).setView([-24.72,-53.74],13);
+   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+     attribution:"&copy; OpenStreetMap contributors",maxZoom:18
+   }).addTo(map);
+   map.on("click",ev=>choosePickup(ev.latlng.lat,ev.latlng.lng,"Ponto escolhido no mapa"));
+  }
+  setTimeout(()=>map?.invalidateSize(),100);
+ }catch(_){$("pickupChoice").textContent="O mapa não carregou. Use o botão de ponto fictício abaixo para testar a seleção.";}
+}
 const setControls=(loggedIn)=>{$("login").hidden=loggedIn;$("mfa").hidden=true;$("controls").hidden=!loggedIn};
 function clearWatch(){
  if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
  if(ticker!==null){clearInterval(ticker);ticker=null}
- sharing=false;latest=null;
+ sharing=false;latest=null;resetPickup();$("pickupBox").hidden=true;
  $("start").hidden=false;$("stop").hidden=true;$("checkRadar").hidden=true;$("radarCategory").hidden=true;$("radarLabel").hidden=true;$("consent").checked=false;
 }
 async function stopSharing(message="GPS desligado."){
- const wasSharing=sharing;clearWatch();
+ const wasSharing=sharing;const pendingWrite=writeInFlight;clearWatch();
+ // Never allow an already-running GPS write to re-create a row after deletion.
+ if(pendingWrite){try{await pendingWrite;}catch(_){}}
  if(wasSharing&&client){
    try{const r=await client.rpc("nave_v5_stop_pilot_gps");
      status(r.error||r.data!==true?"GPS desligado neste celular. Exclusão remota não confirmada; a posição deixará de valer em até 120 segundos.":message+" Posição removida do banco.");
@@ -72,20 +128,25 @@ async function sendPosition(){
  if(Date.now()-lastSent<15000)return;
  inflight=true;
  try{
-  const r=await client.rpc("nave_v5_set_pilot_gps",{
+  const pending=client.rpc("nave_v5_set_pilot_gps",{
    p_lat:latest.coords.latitude,p_lng:latest.coords.longitude,
    p_accuracy_m:latest.coords.accuracy,p_consent:true
   });
+  writeInFlight=pending;
+  const r=await pending;
+  if(!sharing)return;
   if(r.error){
    clearWatch();status("Servidor GPS ainda indisponível. Nenhum compartilhamento está ativo; verifique a homologação.");return;
   }
   if(r.data!==true){
    clearWatch();status("GPS recusado pelo servidor: confirme conta do piloto, MFA, ONLINE e precisão da localização.");return;
   }
-  lastSent=Date.now();$("checkRadar").hidden=false;$("radarCategory").hidden=false;$("radarLabel").hidden=false;status("🟢 GPS de teste autorizado · última atualização "+new Date().toLocaleTimeString("pt-BR")+
+  lastSent=Date.now();$("checkRadar").hidden=false;$("radarCategory").hidden=false;$("radarLabel").hidden=false;
+  void showPickupMap();
+  status("🟢 GPS de teste autorizado · última atualização "+new Date().toLocaleTimeString("pt-BR")+
    " · precisão aproximada "+Math.round(latest.coords.accuracy)+" m. Nenhuma corrida criada.");
  }catch(_){status("Falha de comunicação. A posição anterior expira em até 120 segundos. Você pode tocar em PARAR.");}
- finally{inflight=false;}
+ finally{writeInFlight=null;inflight=false;}
 }
 async function loginVerify(){
  const {data:l,error:e}=await client.auth.mfa.getAuthenticatorAssuranceLevel();if(e)throw e;
@@ -126,20 +187,30 @@ $("start").onclick=()=>{
  ticker=setInterval(()=>{void sendPosition()},30000);
 };
 $("stop").onclick=()=>void stopSharing("Compartilhamento interrompido.");
+$("pickupNearby").onclick=()=>{
+ if(!sharing||!latest||Date.now()-latest.timestamp>90000){$("pickupChoice").textContent="Aguarde seu GPS atualizar primeiro.";return;}
+ // Synthetic location approximately 2 km north of the current pilot position.
+ const lat=latest.coords.latitude+0.018;
+ const lng=latest.coords.longitude;
+ if(!validPickup(lat,lng)){$("pickupChoice").textContent="Ponto fictício fora da área permitida. Escolha no mapa.";return;}
+ choosePickup(lat,lng,"Ponto fictício aproximadamente 2 km ao norte do GPS");
+ if(map)map.setView([lat,lng],14);
+};
 $("checkRadar").onclick=async()=>{
  const b=$("checkRadar");
  if(!sharing||document.hidden||!latest||Date.now()-latest.timestamp>90000){status("GPS não está ativo ou recente. Aguarde uma nova atualização de localização.");return;}
+ if(!pickup){status("Selecione primeiro um embarque fictício no mapa ou no botão de exemplo.");return;}
  b.disabled=true;status("Verificando agora o GPS no radar da NAVE…");
  try{
    const {data,error}=await client.rpc("nave_v5_nearest_pilot_demo",{
-     p_pickup_lat:latest.coords.latitude,p_pickup_lng:latest.coords.longitude,
+     p_pickup_lat:pickup.lat,p_pickup_lng:pickup.lng,
      p_category:$("radarCategory").value
    });
    if(error)throw error;
    if(data?.testOnly===true&&data?.whatsappSendEnabled===false&&data?.driverCode==="NAVE-0001"){
-     status("✅ Radar confirmou NAVE-0001! Distância em linha reta ao ponto de teste: "+data.distanceMeters+" metros. GPS autenticado, sem corrida nem mensagem.");
+     status("✅ Radar confirmou NAVE-0001! Distância entre seu GPS e o EMBARQUE escolhido: "+new Intl.NumberFormat("pt-BR").format(Number(data.distanceMeters))+" metros em linha reta. Categoria: "+$("radarCategory").selectedOptions[0].textContent+". Sem viagem, pagamento ou envio de WhatsApp.");
    }else{
-     status("Nenhum piloto elegível agora. Confirme status ONLINE e aguarde a próxima atualização de GPS.");
+     status("Nenhum piloto elegível neste momento para o embarque escolhido. Confirme ONLINE e atualização GPS; nenhuma oferta foi enviada.");
    }
  }catch(_){status("Não foi possível consultar o radar. Tente novamente enquanto o GPS estiver ativo.");}
  finally{b.disabled=false;}
