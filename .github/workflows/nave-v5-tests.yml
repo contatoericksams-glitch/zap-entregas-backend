@@ -82,6 +82,33 @@ jobs:
             if(d.commercialRidesEnabled!==false || d.persistenceEnabled!==false || d.channelIntegrationEnabled!==false) process.exit(1);
             console.log("V5 preview API OK, read-only simulation");
           '
+          # End-to-end journey lab: all state changes are fictional and stateless.
+          curl --silent --show-error --fail --max-time 50 "$BASE/jornada-integrada.html" -o /tmp/nave-journey.html
+          grep -Fq "Jornada integrada" /tmp/nave-journey.html
+          grep -Fq "/api/v5/journey-lab" /tmp/nave-journey.html
+          curl --silent --show-error --fail --max-time 50 \
+            -X POST -H 'Content-Type: application/json' \
+            -d '{"action":"start","category":"eco","scenario":"normal"}' \
+            "$BASE/api/v5/journey-lab" -o /tmp/nave-journey-start.json
+          node -e '
+            const fs=require("fs");
+            const data=JSON.parse(fs.readFileSync("/tmp/nave-journey-start.json","utf8"));
+            if(data.phase!=="offer_pending"||data.driverId!=="DEMO-BETA"||
+              data.commercialRidesEnabled!==false||data.persistenceEnabled!==false||
+              data.whatsappSendEnabled!==false||data.paymentsEnabled!==false||
+              data.realGpsUsed!==false)process.exit(1);
+            fs.writeFileSync("/tmp/nave-journey-accept.json",JSON.stringify({action:"accept",state:data.state}));
+          '
+          curl --silent --show-error --fail --max-time 50 -X POST \
+            -H 'Content-Type: application/json' -d @/tmp/nave-journey-accept.json \
+            "$BASE/api/v5/journey-lab" -o /tmp/nave-journey-accepted.json
+          node -e '
+            const fs=require("fs");
+            const d=JSON.parse(fs.readFileSync("/tmp/nave-journey-accepted.json","utf8"));
+            if(d.phase!=="driver_to_pickup"||d.whatsappSendEnabled!==false||
+               d.persistenceEnabled!==false||d.paymentsEnabled!==false)process.exit(1);
+            console.log("Lab journey quote, offer and acceptance OK with side effects disabled");
+          '
           curl --silent --show-error --fail --max-time 50 "$BASE/pilot-app-test.html" -o /tmp/nave-pilot.html
           grep -q "NAVE" /tmp/nave-pilot.html
           echo "Pilot HTML present (outbound test disabled)"
