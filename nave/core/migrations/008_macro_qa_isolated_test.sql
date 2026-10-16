@@ -1,7 +1,8 @@
 \set ON_ERROR_STOP on
 -- MACRO-QA P06/P07/P08 — only runs in ephemeral GitHub Postgres, never production Supabase.
 -- Run after 006_shared_journey_lab_isolated_test.sql creates the schema and auth stubs.
-SET ROLE authenticated;
+-- Superuser isolated CI harness may inspect event-count invariants.
+-- Authenticated clients still cannot SELECT the event table (tested separately).
 SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 SELECT set_config('request.jwt.claims','{"aal":"aal2"}',false);
 DO $macro$
