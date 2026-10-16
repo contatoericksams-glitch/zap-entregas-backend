@@ -35,6 +35,10 @@ jobs:
           node --check core/ride-contract.js
           node --check core/nearest-pilot-preview.js
           node --check core/smart-dispatch-preview.js
+          node --check core/smart-dispatch-osrm.js
+          node --check core/smart-dispatch-osrm-router.js
+          node --check core/smart-dispatch-osrm.test.js
+          node --check core/smart-dispatch-osrm-http.test.js
           node --check core/smart-dispatch-preview.test.js
           node --check core/smart-dispatch-http.test.js
           node --check core/road-eta-preview.js
