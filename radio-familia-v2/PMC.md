@@ -1,6 +1,6 @@
 # PLANO MESTRE DE CRIAÇÃO — RÁDIO FAMÍLIA V2 MATRIX
 
-**Status:** versão piloto construída, compilada e sob testes. **Não homologada**.  
+**Status:** V2.1 PIN4 compilada e aprovada nos testes automatizados; aguardando teste físico. **Não homologada**.  
 **Base protegida:** Rádio Família V1.1 — Marco Histórico #001. Branch e serviço Render originais não alterados por este projeto.
 
 ## Objetivo
@@ -19,7 +19,8 @@ Evoluir o Rádio Família de um único canal para um comunicador digital multica
 - [x] M08 — CI no GitHub Actions: compilação Android e testes automáticos WebSocket/canais.
 - [ ] M09 — Teste real nos três celulares (som, microfone, presença e troca de canais).
 - [ ] M10 — Testes de reconexão, celular bloqueado, suspensão do Render e redes Wi-Fi/4G.
-- [ ] M11 — Banco de dados próprio, cadastro persistente e criação de canais pelo usuário.
+- [x] M11A — Piloto: criar canais temporários no aplicativo, PIN aleatório de exatamente 4 dígitos e entrada por convite, com testes automatizados.
+- [ ] M11B — Banco de dados próprio, identidade persistente, PIN com expiração/rotação e canais que sobrevivem a reinícios.
 - [ ] M12 — Autenticação individual e permissões reais de organizações/setores (obrigatório antes de escola/empresa).
 - [ ] M13 — Testes de carga e dimensionamento de custo para dezenas de usuários.
 - [ ] M14 — Refinamento visual a partir de capturas de telas reais.
@@ -29,16 +30,25 @@ Evoluir o Rádio Família de um único canal para um comunicador digital multica
 ## Limitações do piloto
 - Apenas três identidades familiares cadastradas: Erick, Bruna e Pietro; os quatro canais são definidos no servidor.
 - Usa o código familiar compartilhado. A autorização nesta versão está vinculada ao nome declarado pelo cliente. Não é segurança adequada para equipes corporativas.
-- Ainda não existe criação dinâmica de salas nem persistência de contas/canais em banco de dados.
+- Já existe criação dinâmica de salas com PIN de 4 dígitos **apenas no piloto de memória**. Esses canais e seus PINs **somem em reinicializações/redeploys/suspensão da instância Render**. Ainda não há banco de dados nem contas persistentes.
+- PIN de 4 dígitos é convite, não autenticação forte. O código familiar compartilhado e nome declarado não garantem identificação individual: **não utilizar para organizações, dados sensíveis ou segurança real**.
+- Criar canal/entrar com PIN requer estar conectado ao servidor, com identidade do piloto. Há limite de tentativas, limites por usuário e de canais temporários.
 - Render Free pode suspender por inatividade; não indicado como rádio exclusivo de emergência.
 - A aparência é uma primeira implementação nativa **inspirada** no mockup, não uma reprodução pixel a pixel.
 - Até teste físico, compilação e testes automatizados não equivalem à homologação.
 
 ## Procedimento do piloto
-1. Instalar `Radio_Familia_V2_Matrix_Teste.apk` sem desinstalar a V1.1.
+1. Instalar `Radio_Familia_V2_1_PIN4_Teste.apk` sem desinstalar a V1.1 nem a V2.0. O package Android desta versão é independente.
 2. Nos ajustes, inserir o mesmo código da V1 e usar nome Erick, Bruna ou Pietro.
 3. Ligar rádio no interruptor e escolher um canal.
-4. Conferir presença, áudio, equalizador e isolamento da sala.
-5. Registrar resultados e ajustes para a próxima entrega.
+4. Criar um canal, anotar o PIN de quatro números, entrar com outro aparelho utilizando o mesmo código familiar e PIN.
+5. Conferir presença, áudio, equalizador e isolamento da sala.
+6. Registrar resultados e ajustes para a próxima entrega.
 
 **SALVE VERBO!**
+
+## Branch e infraestrutura da versão PIN4
+- Branch: `radio-familia-v2-pin4` (separada e independente da V1.1 e da V2.0).
+- Servidor Render Free: `https://radio-familia-v2-pin4.onrender.com`.
+- Interface: botões `+ CRIAR CANAL` e `ENTRAR COM PIN` na seção Canais / Frequências.
+- Limitação: PIN/salas criadas dinamicamente não são duráveis até implantação de banco de dados isolado.
