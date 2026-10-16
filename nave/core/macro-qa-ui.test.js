@@ -26,5 +26,5 @@ test("Macro-QA client touches only a stateless local simulation route",()=>{
 test("Macro-QA dashboard does not claim automatic PMC completion",()=>{
  assert.match(page,/percentual só aumenta quando os critérios de módulos forem comprovados/);
  assert.match(page,/nenhum critério de operação final foi automaticamente homologado/);
- assert.match(page,/em dois navegadores/i);
+ assert.match(page,/duas telas/i);
 });
