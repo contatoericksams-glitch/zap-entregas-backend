@@ -23,13 +23,13 @@ jobs:
           ws.addEventListener('open', () => {
             opened=true;
             console.log('WEBSOCKET_HANDSHAKE_OK');
-            // Sem enviar codigo: servidor deve encerrar a tentativa em 8s com codigo 4001
+            ws.send(JSON.stringify({type:'join',code:'codigo-intencionalmente-invalido-probe',name:'diagnostico-testador'}));
           });
           ws.addEventListener('close', (e) => {
             clearTimeout(t);
             console.log('WEBSOCKET_CLOSE_CODE:'+e.code);
             console.log('SERVER_REASON:'+e.reason);
-            if(opened && e.code === 4001) { console.log('PROTOCOLO_WEBSOCKET_OK'); process.exit(0); }
+            if(opened && e.code === 4003) { console.log('PROTOCOLO_WEBSOCKET_OK'); process.exit(0); }
             process.exit(2);
           });
           ws.addEventListener('error', (e) => {
