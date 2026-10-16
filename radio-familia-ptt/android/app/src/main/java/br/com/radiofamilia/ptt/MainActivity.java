@@ -25,6 +25,8 @@ public class MainActivity extends Activity implements PttService.Listener {
     private boolean bound=false,pending=false,connected=false,requested=false,updatingToggle=false;
     private String speaking=null,active="ch01";
     private String[] lastChannelIds=new String[0],lastChannelNames=new String[0];
+    private String[] activeRoomNames=new String[0];
+    private boolean[] activeRoomOnline=new boolean[0];
     private String[][] lastRosters=new String[0][];
     private final ServiceConnection serviceConnection=new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name,IBinder binder) {
@@ -231,7 +233,16 @@ public class MainActivity extends Activity implements PttService.Listener {
             tile.setPadding(dp(12),dp(7),dp(12),dp(7));
             tile.setBackground(back(activeChannel?Color.rgb(8,51,30):PANEL,activeChannel?GREEN:Color.rgb(50,74,59),10));
             tile.addView(label("CH "+String.format(java.util.Locale.US,"%02d",i+1),11,activeChannel?GREEN:MUTED,true));
-            TextView n=label(lastChannelNames[i],13,WHITE,true);n.setSingleLine(true);tile.addView(n);
+            LinearLayout titleRow=line();
+            TextView n=label(lastChannelNames[i],13,WHITE,true);n.setSingleLine(true);
+            titleRow.addView(n);
+            if(activeChannel && activeRoomNames.length>0) {
+                for(int j=0;j<activeRoomNames.length;j++) {
+                    int dotColor=j<activeRoomOnline.length&&activeRoomOnline[j]?GREEN:RED;
+                    TextView dot=label(" ●",10,dotColor,true);titleRow.addView(dot);
+                }
+            }
+            tile.addView(titleRow);
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(61));lp.rightMargin=dp(8);channelsContainer.addView(tile,lp);
             tile.setOnClickListener(v->{
                 if(!connected){Toast.makeText(this,"Ligue o rádio primeiro",Toast.LENGTH_SHORT).show();return;}
@@ -240,7 +251,9 @@ public class MainActivity extends Activity implements PttService.Listener {
         }
     }
     private void showMembers(String[] roster,boolean[] online,String speaker){
+        activeRoomNames=roster;activeRoomOnline=online;
         peopleContainer.removeAllViews();
+        showChannels();
         for(int i=0;i<roster.length;i++){
             final String user=roster[i];final boolean on=i<online.length && online[i];
             final boolean speakingNow=on&&user.equals(speaker);
@@ -307,8 +320,15 @@ public class MainActivity extends Activity implements PttService.Listener {
             c.drawCircle(cx,cy,r-dp(8),paint);
             paint.setColor(color);paint.setTypeface(Typeface.DEFAULT_BOLD);
             paint.setTextAlign(Paint.Align.CENTER);
-            paint.setTextSize(dp(74));paint.setShadowLayer(dp(12),0,0,color);
-            c.drawText("◉",cx,cy-dp(17),paint);paint.clearShadowLayer();
+            paint.setShadowLayer(dp(10),0,0,color);
+            float my=cy-dp(28);
+            float micW=dp(17),micH=dp(53);
+            c.drawRoundRect(cx-micW/2,my-micH/2,cx+micW/2,my+micH/2,dp(11),dp(11),paint);
+            paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(5));
+            c.drawArc(cx-dp(23),my-dp(18),cx+dp(23),my+dp(34),0,180,false,paint);
+            c.drawLine(cx,my+dp(35),cx,my+dp(46),paint);
+            c.drawLine(cx-dp(14),my+dp(47),cx+dp(14),my+dp(47),paint);
+            paint.setStyle(Paint.Style.FILL);paint.clearShadowLayer();
             paint.setColor(WHITE);paint.setTextSize(dp(19));
             c.drawText(talking?"TRANSMITINDO":receiving?"RECEBENDO":"SEGURE",cx,cy+dp(23),paint);
             c.drawText(talking?"SOLTE PARA OUVIR":receiving?"ÁUDIO":"PARA FALAR",cx,cy+dp(47),paint);
