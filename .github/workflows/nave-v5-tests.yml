@@ -50,6 +50,7 @@ jobs:
           node --check core/preview-router.js
           node --check core/shared-journey-ui.test.js
           node --check core/macro-qa-batches.test.js
+          node --check core/macro-qa-staging-runner.cjs
           node --check core/channel-compat.js
           node --check core/reservation-plan.js
           node --check ../central-master-v4/master-auth.js
@@ -57,6 +58,23 @@ jobs:
         env:
           NODE_PATH: ${{ github.workspace }}/nave/node_modules
         run: node --test core/*.test.js ../central-master-v4/master-auth.test.js
+
+
+  macro-qa-staging:
+    if: github.ref == 'refs/heads/nave-master-v5-dev' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[macro-qa]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout isolated NAVE V5 development branch
+        uses: actions/checkout@v4
+      - name: Node.js for live staging QA packs
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Execute five exact dashboard QA packs against fixed staging fake journey API
+        run: node nave/core/macro-qa-staging-runner.cjs
 
   staging-smoke:
     runs-on: ubuntu-latest
