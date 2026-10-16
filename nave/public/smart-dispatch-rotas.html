@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#071725">
+<title>NAVE | SmartDispatch Rotas OSRM</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui,-apple-system,Arial,sans-serif;background:#071725;color:#e8f7fd}
+*{box-sizing:border-box}body{margin:0;padding:20px 13px 44px;min-height:100vh}main{max-width:760px;margin:auto}
+.brand{color:#7ff0cf;font-size:.8rem;font-weight:900;letter-spacing:.14em}
+h1{margin:13px 0 6px;font-size:clamp(1.7rem,5vw,2.4rem)}h2{font-size:1.25rem;margin:0 0 10px}
+p{line-height:1.5;color:#c3d7df}strong{color:#fff}
+.panel{background:#112c3d;border:1px solid #345569;border-radius:18px;padding:20px;margin-top:18px}
+label{display:block;font-weight:650;margin:12px 0 7px}
+input:not([type=checkbox]),select{width:100%;border:1px solid #46697e;background:#091d2b;color:#f3fffc;padding:13px;border-radius:10px;font:inherit}
+button{width:100%;border:none;border-radius:11px;padding:14px;margin-top:13px;background:#75e9c7;color:#09272d;font:inherit;font-weight:850;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}.secondary{background:#35576e;color:#fff}
+.mfa{font-size:.87rem;color:#b2d1db}.consent{display:flex;gap:10px;align-items:start;font-size:.93rem;font-weight:500;line-height:1.48}
+.consent input{width:21px;height:21px;flex-shrink:0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#feedback{min-height:66px;border-left:3px solid #75eccd;background:#173c4d;padding:15px;border-radius:10px;line-height:1.55;margin-top:15px}
+ul{padding-left:20px}li{line-height:1.6;margin:7px 0}
+.rank{border:1px solid #315b6b;border-radius:13px;padding:12px;margin:9px 0;background:#0b2937}
+.rank strong{font-size:1.08rem}.small{font-size:.82rem;color:#a9c6d4}
+.tag{background:#1c494e;color:#95f8db;border-radius:30px;display:inline-block;padding:6px 12px;font-weight:800;font-size:.75rem}
+a{color:#7feacf}footer{margin-top:24px;font-size:.83rem;color:#a9c5d0;line-height:1.6}
+@media(max-width:580px){.row{grid-template-columns:1fr}}
+</style></head><body><main>
+<div class="brand">NAVE · CENTRAL SMARTDISPATCH V5</div>
+<h1>Tempo de chegada pelas ruas ⚡</h1>
+<p>Compare até três motoristas <strong>fictícios</strong> usando tempos calculados pelo OSRM. A NAVE simula a seleção de quem chegaria primeiro até um embarque fictício em Toledo.</p>
+<span class="tag">ROTEAMENTO REAL · PONTOS FICTÍCIOS</span>
+<div class="panel">
+ <h2>1. Autorização do operador</h2>
+ <p class="small">Acesso de homologação com conta administrativa NAVE e MFA. Nenhuma localização real do seu celular será solicitada nesta página.</p>
+ <form id="login">
+  <label for="email">E-mail</label><input type="email" id="email" autocomplete="username" required>
+  <label for="password">Senha</label><input type="password" id="password" autocomplete="current-password" required>
+  <button type="submit">Entrar na homologação</button>
+ </form>
+ <form id="mfa" hidden>
+  <label for="otp">Código do autenticador (MFA)</label><input type="text" id="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required>
+  <button type="submit">Validar código MFA</button>
+ </form>
+ <div id="authenticated" hidden><p>✅ Conta administrativa autenticada com MFA.</p><button id="logout" type="button" class="secondary">Sair da conta</button></div>
+</div>
+<div class="panel">
+ <h2>2. Laboratório de despacho</h2>
+ <div class="row">
+  <div><label for="category">Categoria</label><select id="category">
+   <option value="eco">NAVE Eco</option><option value="confort">NAVE Confort</option>
+   <option value="executive">NAVE Executive</option><option value="navegator">NAVEGATOR</option>
+  </select></div>
+  <div><label for="scenario">Cenário</label><select id="scenario">
+   <option value="all">Pilotos elegíveis</option>
+   <option value="busy">DEMO-BETA ocupado</option>
+   <option value="unavailable">Sem rotas: não despachar</option>
+  </select></div>
+ </div>
+ <p class="small">Embarque e veículos são coordenadas predefinidas e fictícias em Toledo. Não há GPS pessoal nem contato com motoristas reais.</p>
+ <label class="consent"><input type="checkbox" id="providerConsent"><span>Autorizo <strong>esta consulta ao OSRM público</strong> com as posições fictícias do laboratório. Sei que o provedor externo pode registrar a solicitação e que os tempos não consideram trânsito em tempo real.</span></label>
+ <button id="simulate" type="button" disabled>Calcular ETAs pelas ruas e escolher motorista</button>
+ <div id="feedback" role="status" aria-live="polite">Aguardando autenticação e autorização específica. Nenhuma consulta foi enviada.</div>
+ <div id="rankings" aria-label="Ranking de motoristas fictícios"></div>
+</div>
+<div class="panel">
+ <h2>O que este teste comprova?</h2>
+ <p>A escolha de um motorista a partir de <strong>tempos de rota calculados por um serviço externo</strong>, em vez de tempos simulados manualmente. Se o serviço não responder, não inventamos ETA nem motorista vencedor.</p>
+ <p class="small">Não usamos GPS real dos motoristas, não criamos corridas, não enviamos WhatsApp e não fazemos cobranças. O serviço de rotas é de demonstração e pode ficar indisponível ou limitar requisições.</p>
+ <a href="/smart-dispatch.html">← Voltar ao laboratório com tempos fictícios</a>
+</div>
+<footer>NAVE V5 · Homologação independente · OSRM (Open Source Routing Machine). A rota representa estimativa sem dados de tráfego ao vivo. Nunca utilize os números como promessa de chegada ao passageiro.</footer>
+</main>
+<script src="/pilot-test-config.js"></script>
+<script type="module">
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2.49.0";
+const $=id=>document.getElementById(id);
+const config=window.NAVE_TEST_PUBLIC_CONFIG;
+const message=t=>{$("feedback").textContent=t};
+let client=null,factor=null,authenticated=false,busy=false;
+function enable(){
+ $("simulate").disabled=!authenticated||!$("providerConsent").checked||busy;
+}
+function logoutView(){
+ authenticated=false;$("login").hidden=false;$("mfa").hidden=true;$("authenticated").hidden=true;
+ $("providerConsent").checked=false;enable();
+ $("rankings").replaceChildren();
+}
+async function completeLogin(){
+ const assurance=await client.auth.mfa.getAuthenticatorAssuranceLevel();
+ if(assurance.error)throw assurance.error;
+ const admin=await client.rpc("nave_is_admin");
+ if(admin.error||admin.data!==true)throw Error("Not an admin");
+ if(assurance.data?.currentLevel!=="aal2"){
+  const factors=await client.auth.mfa.listFactors();
+  if(factors.error)throw factors.error;
+  factor=factors.data?.totp?.find(x=>x.status==="verified")?.id;
+  if(!factor)throw Error("MFA missing");
+  $("login").hidden=true;$("mfa").hidden=false;message("Confirme o MFA para liberar a simulação.");return;
+ }
+ authenticated=true;$("login").hidden=true;$("mfa").hidden=true;$("authenticated").hidden=false;
+ message("MFA validado. Selecione o cenário e autorize a consulta externa antes de calcular.");enable();
+}
+if(config?.supabaseUrl&&config?.publishableKey){
+ client=createClient(config.supabaseUrl,config.publishableKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+}else{message("Configuração de acesso da homologação indisponível.");$("login").querySelector("button").disabled=true}
+$("login").onsubmit=async e=>{
+ e.preventDefault();try{
+  const result=await client.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+  $("password").value="";if(result.error)throw result.error;
+  await completeLogin();
+ }catch(_){message("Não foi possível entrar. Confira credenciais e MFA.");}
+};
+$("mfa").onsubmit=async e=>{
+ e.preventDefault();try{
+  const code=$("otp").value.trim();if(!/^[0-9]{6}$/.test(code))throw Error("Invalid MFA");
+  const challenge=await client.auth.mfa.challenge({factorId:factor});if(challenge.error)throw challenge.error;
+  const verified=await client.auth.mfa.verify({factorId:factor,challengeId:challenge.data.id,code});
+  if(verified.error)throw verified.error;
+  $("otp").value="";await completeLogin();
+ }catch(_){message("MFA inválido ou indisponível.");}
+};
+$("providerConsent").onchange=enable;
+$("category").onchange=()=>{$("providerConsent").checked=false;enable();$("rankings").replaceChildren()};
+$("scenario").onchange=()=>{$("providerConsent").checked=false;enable();$("rankings").replaceChildren()};
+$("logout").onclick=async()=>{if(client)await client.auth.signOut();logoutView();message("Sessão encerrada. Nenhuma consulta ativa.")};
+$("simulate").onclick=async()=>{
+ if(!authenticated||!$("providerConsent").checked||busy)return;
+ busy=true;enable();$("rankings").replaceChildren();message("Consultando matriz de rotas do OSRM para pilotos fictícios…");
+ try{
+  const sess=await client.auth.getSession();
+  const token=sess.data?.session?.access_token;
+  if(!token)throw Error("Authentication expired");
+  const resp=await fetch("/api/v5/smart-dispatch-osrm",{
+   method:"POST",cache:"no-store",credentials:"omit",redirect:"error",
+   headers:{"content-type":"application/json","authorization":"Bearer "+token},
+   body:JSON.stringify({simulation:true,consentExternalRouting:true,
+    category:$("category").value,scenario:$("scenario").value})
+  });
+  if(resp.status===429){message("Aguarde cerca de 45 segundos entre os testes para respeitar o servidor público OSRM.");return}
+  if(!resp.ok)throw Error("Provider unavailable");
+  const data=await resp.json();
+  if(data.testOnly!==true||data.whatsappSendEnabled!==false||
+    data.commercialRidesEnabled!==false||data.persistenceEnabled!==false)
+   throw Error("Unsafe response");
+  if(data.scenario==="unavailable"){
+   message("Sem rotas válidas: nenhum piloto selecionado. A NAVE não deve inventar um ETA.");
+   return;
+  }
+  if(!data.selected){
+   message("Nenhum motorista elegível com ETA calculado. Nenhuma oferta foi criada.");return;
+  }
+  if(data.routeSource!=="osrm-public-table"||data.realRoadRoutingEnabled!==true)
+   throw Error("Unverified provider");
+  message("✅ SmartDispatch selecionou "+data.selected.driverId+
+   " por menor tempo OSRM: aproximadamente "+Math.ceil(data.selected.etaSeconds/60)+
+   " min pelas ruas. "+data.eligibleCount+" pilotos elegíveis. Sem trânsito em tempo real.");
+  const heading=document.createElement("h2");heading.textContent="Ranking de chegada · rotas OSRM";heading.style.marginTop="18px";
+  $("rankings").append(heading);
+  data.ranked.forEach((d,i)=>{
+   const div=document.createElement("div");div.className="rank";
+   const title=document.createElement("strong");title.textContent=(i+1)+"º · "+d.driverId;
+   const detail=document.createElement("div");detail.className="small";
+   detail.textContent=Math.ceil(d.etaSeconds/60)+" min · "+(d.roadDistanceMeters/1000).toLocaleString("pt-BR",{maximumFractionDigits:2})+" km pelas ruas";
+   div.append(title,detail);$("rankings").append(div);
+  });
+ }catch(_){message("OSRM não pôde fornecer rotas confiáveis agora. Nenhum tempo ou motorista foi inventado.");}
+ finally{busy=false;$("providerConsent").checked=false;enable();}
+};
+</script>
+</body></html>
