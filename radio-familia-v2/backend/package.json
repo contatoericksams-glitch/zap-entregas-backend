@@ -1,0 +1,16 @@
+{
+  "name": "radio-familia-v2-backend",
+  "private": true,
+  "version": "2.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "dependencies": {
+    "ws": "8.18.3"
+  }
+}
