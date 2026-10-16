@@ -76,7 +76,7 @@ jobs:
           echo "Pilot HTML present (outbound test disabled)"
           curl --silent --show-error --fail --max-time 50 "$BASE/gps-piloto.html" -o /tmp/nave-gps.html
           grep -q "Você controla sua localização" /tmp/nave-gps.html
-          grep -q "Verificar meu GPS no radar" /tmp/nave-gps.html
+          grep -q "Verificar distância até o embarque fictício" /tmp/nave-gps.html
           grep -q "nave_v5_nearest_pilot_demo" /tmp/nave-gps.html
           grep -Fq "Ponto escolhido no mapa" /tmp/nave-gps.html
           grep -Fq "p_pickup_lat:pickup.lat,p_pickup_lng:pickup.lng" /tmp/nave-gps.html
