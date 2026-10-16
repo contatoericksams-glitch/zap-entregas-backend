@@ -1,0 +1,17 @@
+{
+  "name": "radio-familia-ptt-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Canal PTT privado familiar",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "8.18.3"
+  }
+}
