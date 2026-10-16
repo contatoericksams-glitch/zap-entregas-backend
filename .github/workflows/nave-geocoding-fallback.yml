@@ -1,0 +1,23 @@
+name: NAVE - Safe Geocoding Fallback
+on:
+  push:
+    branches: [nave-geocoding-fallback-test]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  geocoding-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax
+        run: |
+          node --check nave/address-lookup.js
+          node --check nave/flow.js
+          node --check nave/address-lookup.test.js
+      - name: Geocoding fallback and safe handling
+        run: node --test nave/address-lookup.test.js
