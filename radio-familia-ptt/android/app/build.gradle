@@ -3,11 +3,11 @@ android {
     namespace 'br.com.radiofamilia.ptt'
     compileSdk 35
     defaultConfig {
-        applicationId 'br.com.radiofamilia.ptt'
+        applicationId 'br.com.radiofamilia.ptt.v2'
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName '1.1.0'
+        versionCode 20
+        versionName '2.0.0'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
