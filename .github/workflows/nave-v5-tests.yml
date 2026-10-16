@@ -131,3 +131,28 @@ jobs:
           sed "s@\\\\i nave/core/migrations/002_pilot_test_status_DRAFT.sql@\\\\i /tmp/002_pilot_test_status_DRAFT.sql@" nave/core/migrations/003_local_rpc_test.sql > /tmp/nave-local-test.sql
           docker cp /tmp/nave-local-test.sql "$PG_CONTAINER":/tmp/nave-local-test.sql
           docker exec "$PG_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/nave-local-test.sql
+
+  postgres-gps-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: gps-test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify real GPS security RPC in isolated PostgreSQL
+        run: |
+          PG_CONTAINER=$(docker ps --filter ancestor=postgres:16 --format '{{.ID}}' | head -1)
+          test -n "$PG_CONTAINER"
+          docker cp nave/core/migrations/004_pilot_gps_DRAFT.sql "$PG_CONTAINER":/tmp/nave-gps-migration.sql
+          docker cp nave/core/migrations/004_pilot_gps_isolated_test.sql "$PG_CONTAINER":/tmp/nave-gps-test.sql
+          docker exec "$PG_CONTAINER" psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f /tmp/nave-gps-test.sql
