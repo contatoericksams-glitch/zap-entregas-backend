@@ -42,6 +42,13 @@ select{width:100%;background:#071c2a;color:#fff;border:1px solid #527386;border-
  <button type="button" class="secondary" id="pickupNearby">Usar ponto fictício a cerca de 2 km do meu GPS</button>
  </section>
  <button type="button" class="secondary" id="checkRadar" hidden disabled>Verificar distância até o embarque fictício</button>
+ <section id="routingBox" hidden>
+  <h2 style="font-size:1.2rem;margin:20px 0 6px">🚗 Rota pelas ruas — prévia</h2>
+  <p class="hint">Opcional. Usamos o serviço público de demonstração OSRM, sem trânsito em tempo real e sem garantia de disponibilidade. Para calcular, o OSRM receberá sua localização atual e o ponto de embarque; esse serviço externo pode registrar as solicitações conforme suas próprias práticas.</p>
+  <label class="consent"><input type="checkbox" id="routingConsent"><span>Autorizo <strong>este cálculo de rota</strong> e o envio temporário dos dois pontos ao OSRM. Entendo que é um serviço externo, apenas para simulação.</span></label>
+  <button type="button" class="secondary" id="roadEta" disabled>Calcular distância pelas ruas e tempo estimado</button>
+  <div id="roadResult" class="status" role="status" aria-live="polite">Rota não solicitada. Sem envio de coordenadas ao serviço externo.</div>
+ </section>
  <button type="button" class="secondary" id="logout">Sair da conta</button>
 </div>
 <div class="status" id="status" role="status" aria-live="polite">GPS desligado. Nenhuma coordenada enviada.</div>
@@ -61,15 +68,19 @@ const $=id=>document.getElementById(id);
 const cfg=window.NAVE_TEST_PUBLIC_CONFIG;
 const status=msg=>{$("status").textContent=msg};
 let client=null,factor=null,watch=null,ticker=null,latest=null,sharing=false,lastSent=0,inflight=false;
-let writeInFlight=null,map=null,mapMarker=null,mapPromise=null,pickup=null;
+let writeInFlight=null,map=null,mapMarker=null,mapPromise=null,pickup=null,radarVerified=false;
 function validPickup(lat,lng){return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-26.5&&lat<=-24.4&&lng>=-55.7&&lng<=-52.4;}
 function resetPickup(){
- pickup=null;$("checkRadar").disabled=true;$("pickupChoice").textContent="Nenhum embarque escolhido. Toque em uma rua no mapa.";
+ pickup=null;radarVerified=false;
+ $("routingConsent").checked=false;$("roadEta").disabled=true;$("routingBox").hidden=true;
+ $("roadResult").textContent="Rota não solicitada. Sem envio de coordenadas ao serviço externo.";$("checkRadar").disabled=true;$("pickupChoice").textContent="Nenhum embarque escolhido. Toque em uma rua no mapa.";
  if(mapMarker&&map){map.removeLayer(mapMarker);mapMarker=null;}
 }
 function choosePickup(lat,lng,description){
  if(!sharing||!validPickup(lat,lng)){$("pickupChoice").textContent="Escolha um ponto dentro da área de teste no Oeste do Paraná.";return;}
- pickup={lat,lng};
+ pickup={lat,lng};radarVerified=false;$("routingBox").hidden=true;
+ $("routingConsent").checked=false;$("roadEta").disabled=true;
+ $("roadResult").textContent="Rota não solicitada. Sem envio de coordenadas ao serviço externo.";
  $("pickupChoice").textContent=description+" · Ponto de EMBARQUE fictício. Nenhuma corrida será criada.";
  $("checkRadar").disabled=false;
  if(map&&window.L){
@@ -187,6 +198,11 @@ $("start").onclick=()=>{
  ticker=setInterval(()=>{void sendPosition()},30000);
 };
 $("stop").onclick=()=>void stopSharing("Compartilhamento interrompido.");
+$("radarCategory").onchange=()=>{
+ radarVerified=false;$("routingBox").hidden=true;
+ $("routingConsent").checked=false;$("roadEta").disabled=true;
+};
+$("routingConsent").onchange=()=>{$("roadEta").disabled=!radarVerified||!sharing||!pickup||!$("routingConsent").checked;};
 $("pickupNearby").onclick=()=>{
  if(!sharing||!latest||Date.now()-latest.timestamp>90000){$("pickupChoice").textContent="Aguarde seu GPS atualizar primeiro.";return;}
  // Synthetic location approximately 2 km north of the current pilot position.
@@ -200,7 +216,9 @@ $("checkRadar").onclick=async()=>{
  const b=$("checkRadar");
  if(!sharing||document.hidden||!latest||Date.now()-latest.timestamp>90000){status("GPS não está ativo ou recente. Aguarde uma nova atualização de localização.");return;}
  if(!pickup){status("Selecione primeiro um embarque fictício no mapa ou no botão de exemplo.");return;}
- b.disabled=true;status("Verificando agora o GPS no radar da NAVE…");
+ b.disabled=true;radarVerified=false;$("routingBox").hidden=true;
+ $("routingConsent").checked=false;$("roadEta").disabled=true;
+ status("Verificando agora o GPS no radar da NAVE…");
  try{
    const {data,error}=await client.rpc("nave_v5_nearest_pilot_demo",{
      p_pickup_lat:pickup.lat,p_pickup_lng:pickup.lng,
@@ -208,12 +226,45 @@ $("checkRadar").onclick=async()=>{
    });
    if(error)throw error;
    if(data?.testOnly===true&&data?.whatsappSendEnabled===false&&data?.driverCode==="NAVE-0001"){
+     radarVerified=true;$("routingBox").hidden=false;
      status("✅ Radar confirmou NAVE-0001! Distância entre seu GPS e o EMBARQUE escolhido: "+new Intl.NumberFormat("pt-BR").format(Number(data.distanceMeters))+" metros em linha reta. Categoria: "+$("radarCategory").selectedOptions[0].textContent+". Sem viagem, pagamento ou envio de WhatsApp.");
    }else{
      status("Nenhum piloto elegível neste momento para o embarque escolhido. Confirme ONLINE e atualização GPS; nenhuma oferta foi enviada.");
    }
  }catch(_){status("Não foi possível consultar o radar. Tente novamente enquanto o GPS estiver ativo.");}
  finally{b.disabled=false;}
+};
+$("roadEta").onclick=async()=>{
+ const b=$("roadEta");
+ if(!sharing||!radarVerified||!pickup||!latest||document.hidden||
+    Date.now()-latest.timestamp>90000||!$("routingConsent").checked){
+  $("roadResult").textContent="Primeiro valide o piloto no radar, escolha o embarque e autorize separadamente a consulta ao OSRM.";return;
+ }
+ b.disabled=true;$("roadResult").textContent="Consultando rota pelas ruas. O OSRM pode demorar alguns segundos…";
+ try{
+  const sess=await client.auth.getSession();
+  if(!sess.data?.session?.access_token)throw Error("Session expired");
+  const response=await fetch("/api/v5/road-eta-preview",{
+   method:"POST",cache:"no-store",credentials:"omit",redirect:"error",
+   headers:{"authorization":"Bearer "+sess.data.session.access_token,"content-type":"application/json"},
+   body:JSON.stringify({
+    simulation:true,consentExternalRouting:true,category:$("radarCategory").value,
+    origin:{lat:latest.coords.latitude,lng:latest.coords.longitude},
+    pickup:{lat:pickup.lat,lng:pickup.lng}
+   })
+  });
+  if(!response.ok)throw Error("Routing unavailable");
+  const d=await response.json();
+  if(d.testOnly!==true||d.commercialRidesEnabled!==false||
+     d.whatsappSendEnabled!==false||!Number.isFinite(d.roadDistanceMeters)||
+     !Number.isFinite(d.etaSeconds))throw Error("Invalid route response");
+  const km=(d.roadDistanceMeters/1000).toLocaleString("pt-BR",{maximumFractionDigits:2});
+  const mins=Math.max(1,Math.ceil(d.etaSeconds/60));
+  $("roadResult").textContent="✅ Rota de teste: "+km+" km pelas ruas · aproximadamente "+mins+
+   " min até o embarque. Estimativa sem trânsito em tempo real, trânsito ou ocorrências. Nenhuma corrida foi criada.";
+ }catch(_){
+  $("roadResult").textContent="A rota não pôde ser calculada agora. O radar por distância em linha reta continua disponível; nenhum tempo de chegada foi inventado.";
+ }finally{b.disabled=!sharing||!radarVerified||!$("routingConsent").checked;}
 };
 $("logout").onclick=async()=>{await stopSharing("GPS desligado.");await client.auth.signOut();setControls(false);status("Sessão encerrada. GPS desligado.");};
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&sharing)void stopSharing("GPS interrompido ao sair da página.");});
