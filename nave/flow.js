@@ -8,9 +8,7 @@ const categoryRates = Object.freeze({
   navegator: { base: 7.2, km: 3.4, min: 0.55 },
 });
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const geoCache = new Map();
-let geocodeQueue = Promise.resolve();
-let lastGeocodeAt = 0;
+const {createAddressLookup} = require("./address-lookup");
 const locks = new Map();
 const welcome = "Olá! ⚡ Bem-vindo à NAVE. VAI SAIR? VAI DE NAVE.\n\nEstamos em TESTES, sem corridas reais.\nResponda *1* para simular uma corrida 100% elétrica.\nDigite *PARAR* para não receber comunicados.";
 
@@ -29,7 +27,8 @@ function locationFrom(message) {
   const lat = Number(message.location?.latitude);
   const lng = Number(message.location?.longitude);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-  return { lat, lng, label: "Localização enviada pelo WhatsApp" };
+  const place = [message.location?.name, message.location?.address].filter(x=>typeof x==="string"&&x.trim()).join(" — ");
+  return { lat, lng, label: place ? clean(place) : "Localização enviada pelo WhatsApp" };
 }
 function insideTestArea(lat, lng) {
   return lat >= -26.5 && lat <= -24.4 && lng >= -55.7 && lng <= -52.4;
@@ -39,38 +38,8 @@ async function getJson(url, headers, ms) {
   if (!response.ok) throw new Error("External route provider unavailable: " + response.status);
   return response.json();
 }
-function lookupAddress(input) {
-  const key = simple(input);
-  if (!key || key.length < 5) return Promise.resolve(null);
-  if (geoCache.has(key)) return Promise.resolve(geoCache.get(key));
-  const task = geocodeQueue.catch(() => {}).then(async () => {
-    const delay = Math.max(0, lastGeocodeAt + 1150 - Date.now());
-    if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-    lastGeocodeAt = Date.now();
-    const q = /(?:parana|paraná|brasil|brazil|\bpr\b)/i.test(input) ? input : input + ", Paraná, Brasil";
-    const url = new URL("https://nominatim.openstreetmap.org/search");
-    url.searchParams.set("q", q);
-    url.searchParams.set("format", "json");
-    url.searchParams.set("limit", "1");
-    url.searchParams.set("countrycodes", "br");
-    url.searchParams.set("viewbox", "-55.7,-24.4,-52.4,-26.5");
-    url.searchParams.set("bounded", "1");
-    const results = await getJson(url.toString(), {
-      "User-Agent": "NAVE-WhatsApp-Pilot/1.1 (contact: contato.ericksams@gmail.com)",
-      "Accept-Language": "pt-BR",
-    }, 6500);
-    const first = results?.[0];
-    if (!first) return null;
-    const lat = Number(first.lat), lng = Number(first.lon);
-    if (!insideTestArea(lat, lng)) return null;
-    const point = { lat, lng, label: clean(input) };
-    if (geoCache.size > 100) geoCache.clear();
-    geoCache.set(key, point);
-    return point;
-  });
-  geocodeQueue = task.catch(() => {});
-  return task;
-}
+const lookupAddress = createAddressLookup({getJson, insideTestArea});
+
 async function pointFor(message) {
   const loc = locationFrom(message);
   if (loc) return loc;
@@ -208,9 +177,9 @@ function createPassengerFlow(supabase, onTestQuote) {
       }
       let point;
       try { point = await pointFor(message); }
-      catch (_) { return "NAVE ⚡ O serviço de endereços está temporariamente indisponível. Tente novamente mais tarde ou envie *CANCELAR*."; }
+      catch (_) { return "NAVE ⚡ A busca automática de endereços não respondeu. Seu teste continua na mesma etapa. Para informar o local, toque em 📎 *Localização*, busque o destino no mapa e envie o ponto escolhido (não a localização atual). Digite CANCELAR apenas se quiser encerrar."; }
       if (!point || !insideTestArea(point.lat, point.lng)) {
-        return "NAVE ⚡ Não consegui identificar esse local no Oeste do Paraná. Envie a localização pelo WhatsApp ou um endereço mais completo, incluindo a cidade.";
+        return "NAVE ⚡ Não consegui localizar esse endereço com segurança. Envie um *ponto do mapa* pelo WhatsApp: 📎 Localização → pesquise o destino → selecione o local. Não envie sua localização atual como destino. Seu teste continua nesta etapa.";
       }
       if (state.step === "awaiting_pickup") {
         errorCheck(await supabase.from("nave_wa_ride_requests").update({
