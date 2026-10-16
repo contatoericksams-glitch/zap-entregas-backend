@@ -86,10 +86,10 @@ begin
   else 'DEMO-BETA' end;
  v_phase := case when v_driver is null then 'no_driver' else 'offer_pending' end;
  v_fare := round((case p_category
-    when 'eco' then 350+4300*1.65+720/60.0*20
-    when 'confort' then 440+4300*1.95+720/60.0*22
-    when 'executive' then 640+4300*3.10+720/60.0*48
-    else 720+4300*3.40+720/60.0*55 end)::numeric)::integer;
+    when 'eco' then 350+4300*0.165+720/60.0*20
+    when 'confort' then 440+4300*0.195+720/60.0*22
+    when 'executive' then 640+4300*0.310+720/60.0*48
+    else 720+4300*0.340+720/60.0*55 end)::numeric)::integer;
  insert into public.nave_v5_lab_sessions
   (owner_id,creation_key,category_code,scenario,phase,driver_code,fare_cents)
  values(v_owner,p_creation_key,p_category,p_scenario,v_phase,v_driver,v_fare)
