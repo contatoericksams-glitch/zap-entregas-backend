@@ -14,7 +14,7 @@ button:disabled{opacity:.55;cursor:not-allowed}.secondary{background:#345267;col
 .status{padding:12px 15px;border-radius:12px;background:#19394b;color:#d6ecf4;margin-top:16px;line-height:1.5}
 strong{color:white}.hint{font-size:.85rem;color:#b1cad5}.ok{color:#80f3d4}.warn{color:#ffcf86}
 .consent{display:flex;gap:10px;align-items:flex-start;margin:15px 0}.consent input{width:21px;height:21px;flex-shrink:0}
-#stop{background:#db495d;color:white}
+#stop{background:#db495d;color:white}select{width:100%;background:#071c2a;color:#fff;border:1px solid #527386;border-radius:10px;padding:12px;font:inherit}
 </style></head><body><main>
 <div class="brand">NAVE • PILOTO GPS V5</div>
 <h1>Você controla sua localização ⚡</h1>
@@ -27,6 +27,9 @@ strong{color:white}.hint{font-size:.85rem;color:#b1cad5}.ok{color:#80f3d4}.warn{
  <label class="consent"><input type="checkbox" id="consent"><span>Autorizo compartilhar minha localização precisa com a NAVE exclusivamente para <strong>simulação de proximidade</strong>. Posso parar a qualquer momento.</span></label>
  <button type="button" id="start">Começar compartilhamento de teste</button>
  <button type="button" id="stop" hidden>PARAR GPS E APAGAR POSIÇÃO</button>
+ <label id="radarLabel" for="radarCategory" hidden>Categoria para testar a proximidade</label>
+ <select id="radarCategory" hidden><option value="eco">NAVE Eco</option><option value="confort">NAVE Confort</option><option value="executive">NAVE Executive</option><option value="navegator">NAVEGATOR</option></select>
+ <button type="button" class="secondary" id="checkRadar" hidden>Verificar meu GPS no radar</button>
  <button type="button" class="secondary" id="logout">Sair da conta</button>
 </div>
 <div class="status" id="status" role="status" aria-live="polite">GPS desligado. Nenhuma coordenada enviada.</div>
@@ -51,7 +54,7 @@ function clearWatch(){
  if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
  if(ticker!==null){clearInterval(ticker);ticker=null}
  sharing=false;latest=null;
- $("start").hidden=false;$("stop").hidden=true;$("consent").checked=false;
+ $("start").hidden=false;$("stop").hidden=true;$("checkRadar").hidden=true;$("radarCategory").hidden=true;$("radarLabel").hidden=true;$("consent").checked=false;
 }
 async function stopSharing(message="GPS desligado."){
  const wasSharing=sharing;clearWatch();
@@ -79,7 +82,7 @@ async function sendPosition(){
   if(r.data!==true){
    clearWatch();status("GPS recusado pelo servidor: confirme conta do piloto, MFA, ONLINE e precisão da localização.");return;
   }
-  lastSent=Date.now();status("🟢 GPS de teste autorizado · última atualização "+new Date().toLocaleTimeString("pt-BR")+
+  lastSent=Date.now();$("checkRadar").hidden=false;$("radarCategory").hidden=false;$("radarLabel").hidden=false;status("🟢 GPS de teste autorizado · última atualização "+new Date().toLocaleTimeString("pt-BR")+
    " · precisão aproximada "+Math.round(latest.coords.accuracy)+" m. Nenhuma corrida criada.");
  }catch(_){status("Falha de comunicação. A posição anterior expira em até 120 segundos. Você pode tocar em PARAR.");}
  finally{inflight=false;}
@@ -123,6 +126,24 @@ $("start").onclick=()=>{
  ticker=setInterval(()=>{void sendPosition()},30000);
 };
 $("stop").onclick=()=>void stopSharing("Compartilhamento interrompido.");
+$("checkRadar").onclick=async()=>{
+ const b=$("checkRadar");
+ if(!sharing||document.hidden||!latest||Date.now()-latest.timestamp>90000){status("GPS não está ativo ou recente. Aguarde uma nova atualização de localização.");return;}
+ b.disabled=true;status("Verificando agora o GPS no radar da NAVE…");
+ try{
+   const {data,error}=await client.rpc("nave_v5_nearest_pilot_demo",{
+     p_pickup_lat:latest.coords.latitude,p_pickup_lng:latest.coords.longitude,
+     p_category:$("radarCategory").value
+   });
+   if(error)throw error;
+   if(data?.testOnly===true&&data?.whatsappSendEnabled===false&&data?.driverCode==="NAVE-0001"){
+     status("✅ Radar confirmou NAVE-0001! Distância em linha reta ao ponto de teste: "+data.distanceMeters+" metros. GPS autenticado, sem corrida nem mensagem.");
+   }else{
+     status("Nenhum piloto elegível agora. Confirme status ONLINE e aguarde a próxima atualização de GPS.");
+   }
+ }catch(_){status("Não foi possível consultar o radar. Tente novamente enquanto o GPS estiver ativo.");}
+ finally{b.disabled=false;}
+};
 $("logout").onclick=async()=>{await stopSharing("GPS desligado.");await client.auth.signOut();setControls(false);status("Sessão encerrada. GPS desligado.");};
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&sharing)void stopSharing("GPS interrompido ao sair da página.");});
 window.addEventListener("pagehide",()=>{if(sharing){clearWatch(); /* TTL server-side blocks stale location. */}});
