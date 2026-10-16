@@ -40,6 +40,19 @@ DO $$DECLARE j jsonb;BEGIN
  IF j->>'driverCode'<>'NAVE-0001' OR j->>'whatsappSendEnabled'<>'false'
  THEN RAISE EXCEPTION 'FAIL: safe nearest pilot preview';END IF;
 END$$;
+-- Simulated pickup 2.1 km away from the GPS, not at the pilot's current location.
+DO $DECLARE j jsonb; meters integer; cat text; BEGIN
+  FOREACH cat IN ARRAY ARRAY['eco','confort','executive','navegator'] LOOP
+    SELECT public.nave_v5_nearest_pilot_demo(-24.749,-53.74,cat) INTO j;
+    meters := (j->>'distanceMeters')::int;
+    IF j->>'driverCode' <> 'NAVE-0001' OR meters < 1900 OR meters > 2400 OR
+       j->>'whatsappSendEnabled' <> 'false' OR j->>'commercialRidesEnabled' <> 'false'
+    THEN RAISE EXCEPTION 'FAIL: pickup-distance simulation category %, distance %',cat,meters; END IF;
+  END LOOP;
+  IF public.nave_v5_nearest_pilot_demo(-24.749,-53.74,'commercial') IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL: unsupported category';
+  END IF;
+END$;
 RESET ROLE;
 UPDATE public.nave_v5_pilot_locations SET expires_at=now()-interval '2 minutes';
 SET ROLE authenticated;
