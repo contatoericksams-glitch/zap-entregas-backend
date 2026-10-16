@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#061726">
+<title>NAVE | SmartDispatch V5</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,Arial,sans-serif;background:#061725;color:#f4feff}
+*{box-sizing:border-box}body{margin:0;padding:22px 14px 45px;min-height:100vh}
+main{max-width:830px;margin:0 auto}
+.brand{font-weight:900;color:#71e9c7;letter-spacing:.19em;font-size:.76rem}
+h1{font-size:clamp(1.75rem,5vw,2.65rem);margin:13px 0 8px;letter-spacing:-.04em}
+p{line-height:1.56;color:#bed1df;margin:9px 0 15px}
+a{color:#7bf0d2}
+.card{border:1px solid #31546d;border-radius:19px;background:#112b3c;padding:20px;margin-top:18px}
+.chip{display:inline-block;border-radius:999px;background:#153e49;color:#8fffe1;padding:7px 13px;font-size:.75rem;font-weight:800;letter-spacing:.04em}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-weight:700;font-size:.87rem;margin:15px 0 8px}
+button,select{font:inherit}
+select{width:100%;background:#09202f;color:white;padding:13px;border:1px solid #577386;border-radius:12px}
+button{border:1px solid #487082;background:#193b4c;color:#effff9;border-radius:13px;padding:12px;font-weight:750;cursor:pointer}
+.categories{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.categories button{font-size:.84rem;min-height:55px}
+.categories button[aria-pressed=true]{border-color:#6de7c3;background:#226258}
+.cta{width:100%;background:#77e8c8;color:#09242d;border:0;padding:16px;margin-top:16px;font-weight:900}
+.result{padding:17px;border-radius:14px;background:#173d4a;border-left:3px solid #72ebcb;margin-top:14px;min-height:84px}
+.result strong{color:white}
+.metric{font-size:1.6rem;font-weight:900;color:#7af0d0}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:13px}
+.tile{padding:13px;border:1px solid #395b6d;border-radius:12px;background:#0a2232}
+.tile small{display:block;color:#adc9d5;font-size:.75rem}.tile b{display:block;font-size:1.25rem;padding-top:7px}
+table{border-collapse:collapse;width:100%;font-size:.85rem}th{text-align:left;color:#adcad7;font-weight:600}
+th,td{padding:12px 5px;border-bottom:1px solid #345266}th:last-child,td:last-child{text-align:right}
+td:nth-child(2){color:#b8d0dc}.status{font-size:.76rem;border-radius:999px;padding:4px 8px;background:#244757;color:#d8e9f2;white-space:nowrap}
+.status.eligible{background:#205b4f;color:#9fffe3}
+.note{font-size:.79rem;color:#b1c9d6}
+footer{font-size:.8rem;line-height:1.6;margin:28px 0;color:#a9c0cf}
+@media(max-width:620px){.layout{grid-template-columns:1fr}.categories{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:repeat(2,1fr)}.card{padding:16px}}
+</style></head>
+<body><main>
+<div class="brand">NAVE / SMARTDISPATCH LAB</div>
+<h1>Quem chega primeiro? ⚡</h1>
+<p>A NAVE aprende a selecionar o motorista pelo <strong>menor tempo estimado até o embarque</strong>, não simplesmente pela menor distância. Este laboratório utiliza exclusivamente <strong>tempos, motoristas e trajetos fictícios</strong>.</p>
+<span class="chip">SIMULAÇÃO · SEM CORRIDAS REAIS</span>
+<div class="card">
+ <h2 style="margin:0 0 12px;font-size:1.2rem">1. Escolha a categoria</h2>
+ <div class="categories" role="group" aria-label="Categoria NAVE para simulação">
+  <button type="button" data-cat="eco" aria-pressed="true">Eco</button>
+  <button type="button" data-cat="confort" aria-pressed="false">Confort</button>
+  <button type="button" data-cat="executive" aria-pressed="false">Executive</button>
+  <button type="button" data-cat="navegator" aria-pressed="false">NAVEGATOR</button>
+ </div>
+ <label for="scenario">2. Cenário do despacho</label>
+ <select id="scenario">
+  <option value="fastest">O mais próximo não é o mais rápido</option>
+  <option value="busy">O piloto mais rápido já tem uma oferta</option>
+  <option value="noRoute">Sem rota confiável: não selecionar</option>
+ </select>
+ <button type="button" class="cta" id="calculate">3. Simular distribuição inteligente</button>
+ <div id="selection" class="result" role="status" aria-live="polite">Toque no botão para descobrir qual piloto seria escolhido.</div>
+ <div class="grid">
+  <div class="tile"><small>Critério</small><b>Menor ETA</b></div>
+  <div class="tile"><small>Motoristas de exemplo</small><b>4</b></div>
+  <div class="tile"><small>Ofertas enviadas</small><b>0</b></div>
+ </div>
+</div>
+<div class="card">
+ <h2 style="margin:0 0 6px">Quadro de elegibilidade</h2>
+ <p class="note">Os dados abaixo são fictícios. Os tempos indicados não vêm de GPS, do trânsito nem do OSRM.</p>
+ <div style="overflow-x:auto">
+ <table><thead><tr><th>Motorista</th><th>Tempo fictício</th><th>Resultado</th></tr></thead>
+ <tbody id="drivers">
+  <tr><td>DEMO-ALFA</td><td>9 min 10 s</td><td><span class="status">Aguardando</span></td></tr>
+  <tr><td>DEMO-BETA</td><td>4 min 40 s</td><td><span class="status">Aguardando</span></td></tr>
+  <tr><td>DEMO-GAMA</td><td>3 min 20 s</td><td><span class="status">OFFLINE</span></td></tr>
+  <tr><td>DEMO-DELTA</td><td>6 min</td><td><span class="status">GPS antigo</span></td></tr>
+ </tbody></table>
+ </div>
+</div>
+<div class="card">
+ <h2 style="margin:0 0 8px">Como isso evolui para corridas reais?</h2>
+ <p>O algoritmo já considera disponibilidade, verificação, categoria, veículo elétrico, GPS recente, ofertas ativas e ETA válido. Nesta versão, <strong>os tempos ainda são fornecidos como exemplos fictícios</strong>.</p>
+ <p>Na próxima integração, conectaremos o ranqueamento às rotas verificadas do provedor e, posteriormente, a múltiplos motoristas autorizados.</p>
+ <a href="/gps-piloto.html">Abrir painel do piloto GPS →</a>
+</div>
+<footer>NAVE V5 em homologação. Sem consulta à localização real, armazenamento de solicitações, mensagem WhatsApp, seleção comercial ou pagamento. Cenários educacionais para validação da lógica.</footer>
+</main>
+<script>
+"use strict";
+let category="eco";
+const $=id=>document.getElementById(id);
+const labels={eco:"Eco",confort:"Confort",executive:"Executive",navegator:"NAVEGATOR"};
+const all=["eco","confort","executive","navegator"];
+const locs={
+ "DEMO-ALFA":{lat:-24.7303,lng:-53.7441},
+ "DEMO-BETA":{lat:-24.7380,lng:-53.7480},
+ "DEMO-GAMA":{lat:-24.7301,lng:-53.7442},
+ "DEMO-DELTA":{lat:-24.7360,lng:-53.7440}
+};
+const estimate={"DEMO-ALFA":{roadDistanceMeters:3100,etaSeconds:550},
+ "DEMO-BETA":{roadDistanceMeters:1600,etaSeconds:280},
+ "DEMO-GAMA":{roadDistanceMeters:1300,etaSeconds:200},
+ "DEMO-DELTA":{roadDistanceMeters:1400,etaSeconds:360}};
+document.querySelectorAll("[data-cat]").forEach(button=>{
+ button.onclick=()=>{
+  category=button.dataset.cat;
+  for(const other of document.querySelectorAll("[data-cat]"))
+   other.setAttribute("aria-pressed",String(other===button));
+ };
+});
+function makeCandidates(scenario){
+ const fresh=new Date().toISOString(),old=new Date(Date.now()-360000).toISOString();
+ return Object.keys(locs).map(id=>({
+  id,testOnly:true,testEnabled:true,verified:true,electricVehicle:true,
+  online:id!=="DEMO-GAMA",activeOffer:scenario==="busy"&&id==="DEMO-BETA",
+  locationSource:"simulated",positionUpdatedAt:id==="DEMO-DELTA"?old:fresh,
+  location:locs[id],categories:id==="DEMO-ALFA"?["eco","confort"]:all,
+  mockRoadRoute:scenario==="noRoute"&&["DEMO-ALFA","DEMO-BETA"].includes(id)?null:estimate[id]
+ }));
+}
+function formatEta(s){return Math.floor(s/60)+" min "+(s%60)+" s"}
+function showDrivers(candidates,data){
+ const tbody=$("drivers");tbody.replaceChildren();
+ const eligible=new Map(data.ranked.map((d,i)=>[d.driverId,i]));
+ for(const c of candidates){
+  const tr=document.createElement("tr");
+  const name=document.createElement("td");name.textContent=c.id;
+  const eta=document.createElement("td");eta.textContent=c.mockRoadRoute?formatEta(c.mockRoadRoute.etaSeconds):"Rota indisponível";
+  const state=document.createElement("td");const badge=document.createElement("span");badge.className="status";
+  let text="Descartado";
+  if(!c.online)text="OFFLINE";
+  else if(c.activeOffer)text="Ocupado";
+  else if(Date.now()-Date.parse(c.positionUpdatedAt)>120000)text="GPS vencido";
+  else if(!c.categories.includes(category))text="Outra categoria";
+  else if(!c.mockRoadRoute)text="Sem rota";
+  else if(eligible.has(c.id)){text=eligible.get(c.id)===0?"Selecionado":"Elegível";badge.classList.add("eligible")}
+  badge.textContent=text;state.append(badge);tr.append(name,eta,state);tbody.append(tr);
+ }
+}
+$("calculate").onclick=async()=>{
+ const button=$("calculate");button.disabled=true;$("selection").textContent="Comparando os motoristas fictícios…";
+ const candidates=makeCandidates($("scenario").value);
+ try{
+  const r=await fetch("/api/v5/smart-dispatch-preview",{
+   method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",
+   body:JSON.stringify({simulation:true,routeSource:"synthetic",category,pickup:{lat:-24.73,lng:-53.744},candidates})
+  });
+  if(!r.ok)throw Error("Unavailable");
+  const data=await r.json();
+  if(data.testOnly!==true||data.whatsappSendEnabled!==false||data.commercialRidesEnabled!==false||data.routeSource!=="synthetic")
+   throw Error("Invalid response");
+  showDrivers(candidates,data);
+  $("selection").textContent=data.selected
+   ? "🏁 "+data.selected.driverId+" seria selecionado para a NAVE "+labels[category]+
+     ". Chegada FICTÍCIA: "+formatEta(data.selected.etaSeconds)+
+     " · percurso fictício: "+(data.selected.roadDistanceMeters/1000).toLocaleString("pt-BR")+" km."+
+     " Elegíveis: "+data.eligibleCount+". Nenhuma oferta enviada."
+   : "Nenhum piloto pôde ser escolhido com segurança. Sem ETA confiável, a NAVE não deve inventar um tempo nem enviar uma oferta.";
+ }catch(_){$("selection").textContent="Não foi possível concluir a simulação. Nenhuma oferta foi enviada."}
+ finally{button.disabled=false}
+};
+</script>
+</body></html>
