@@ -1,5 +1,5 @@
 # NAVE — PLANO MESTRE DE CRIAÇÃO (PMC)
-**PMC v0.6 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
+**PMC v0.7 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
 
 ## 1. Identidade, escopo e comandos
 
@@ -310,5 +310,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 - **Versão 0.5 / 16/10/2026 — instalação da jornada compartilhada:** com autorização do proprietário, migrações `006_shared_journey_lab_DRAFT.sql` e `007_shared_journey_purge_DRAFT.sql` foram aplicadas **somente no Supabase NAVE**. Criadas tabelas `nave_v5_lab_sessions` e `nave_v5_lab_events`; três RPCs protegidas por conta administrativa/AAL2; RLS e permissões diretas/anon bloqueadas. `pg_cron` ativado para limpeza a cada 10 minutos de sessões após 30 min de validade. Verificações após a instalação: **0 sessões e 0 eventos**, permissões de acesso direto negadas e job ativo. Página de laboratório atualizada no GitHub; **teste visual real entre duas sessões ainda pendente**. M15 permanece 1/5 e progresso global 47/100 (47%), pois ainda não há viagem operacional integrada. MC não executado.
 
 - **Versão 0.6 / 16/10/2026 — MACRO-QA:** criados pacotes P01–P09, suíte extensiva Node `core/macro-qa-batches.test.js`, suíte SQL `core/migrations/008_macro_qa_isolated_test.sql`, teste de segurança da UI `core/macro-qa-ui.test.js` e painel de execução única `public/pacotes-qa.html`. Matriz das 4 categorias, 3 situações, jornadas, recusas, preços, cancelamentos, HTTP, MFA, estado persistente, controle de versão, quota e expiração. CI automatizada na branch V5 aprovada com cinco jobs. Testes de banco somente no PostgreSQL temporário; P09 entre dois navegadores ainda exige homologação manual. **Progresso permanece 47/100 (47%)**: testar mais não altera os critérios finais ainda não entregues. **MC NÃO EXECUTADO**.
+
+- **Versão 0.7 / 16/10/2026 — execução efetiva dos macropacotes:** após comando **“execute”**, rodados **P01–P05 contra a API fictícia publicada na homologação** via workflow específico de GitHub Actions [38928889079](https://github.com/contatoericksams-glitch/zap-entregas-backend/actions/runs/38928889079). Evidência: **5/5 pacotes aprovados, 885 verificações aprovadas, 0 falhas, 85 requisições HTTP**. A mesma execução concluiu **6/6 jobs com sucesso**, inclusive PostgreSQL temporário para P06–P08, testes do núcleo, GPS e smoke HTTPS. **P09 (sessões humanas com MFA em duas telas) ainda não homologado.** Relatório detalhado: [`QA_EXECUTION_LOG.md`](./QA_EXECUTION_LOG.md). **Módulos e progresso mantidos em 47/100 (47%)**; cobertura de testes, por si só, não satisfaz critérios finais de integração real. **MC NÃO EXECUTADO**.
 
 **Regra de update:** a cada `ATUALIZE O PMC`, recontar checkboxes e revisar provas; reportar `n/N`, `(n/N)*100`, itens concluídos, parcialidades, pendências e riscos. Nunca declarar `EXECUTAR O MC` sem comando literal do proprietário e homologação final.
