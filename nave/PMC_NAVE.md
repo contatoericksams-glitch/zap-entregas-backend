@@ -1,5 +1,5 @@
 # NAVE — PLANO MESTRE DE CRIAÇÃO (PMC)
-**PMC v0.5 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
+**PMC v0.6 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
 
 ## 1. Identidade, escopo e comandos
 
@@ -287,7 +287,9 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 
 **Prioridade P0:** blocos críticos para operação final. **Prioridade P1:** operação, resiliência, suporte e controles necessários à homologação.
 
-**Próximo sprint:** (a) homologar a jornada compartilhada entre dois navegadores usando a mesma conta administrativa MFA; (b) testar recusas concorrentes, aceite duplicado e expiração após 30 min em campo; (c) evoluir autenticação independente de passageiro e motorista antes de qualquer ligação à plataforma final; (d) manter WhatsApp, GPS e corridas comerciais isolados até novas autorizações.
+**Próximo sprint — homologação concentrada:** (a) executar o lote P01–P05 na tela `/pacotes-qa.html` com um clique; (b) validar P09 entre dois navegadores com a mesma conta administrativa MFA e evidências de sincronização; (c) registrar critérios de módulo realmente concluídos, sem pontuação por testes repetidos; (d) implementar autenticação real separada de passageiro/motorista e jornada completa; (e) preservar isolamento de WhatsApp, GPS e cobranças.
+
+**Testes em pacotes:** [Plano MACRO-QA](./QA_PACOTES_MASTER.md) — P01–P05 no painel e Node, P06–P08 em PostgreSQL 16 temporário no GitHub, P09 humano de duas telas. Nenhuma bateria de banco executa cargas no Supabase operacional.
 
 **Bloqueadores de MC:** aplicativos definitivos não integrados; despacho real ainda não homologado; ciclo de corrida incompleto; pagamentos pendentes; suporte/legal e homologação final pendentes; usuário ainda não emitiu `EXECUTAR O MC`.
 
@@ -306,5 +308,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 - **Versão 0.4 / 16/10/2026 — sprint de estado compartilhado (migração pendente):** construída uma estrutura isolada de sessões fictícias com persistência PostgreSQL: `006_shared_journey_lab_DRAFT.sql` (tabela de sessões e eventos, RPCs `nave_v5_lab_start`, `nave_v5_lab_snapshot`, `nave_v5_lab_advance`, MFA administrativo, RLS, controle de versão, idempotência, 30 minutos de validade) e `007_shared_journey_purge_DRAFT.sql` para limpeza periódica. Nova interface `jornada-compartilhada.html` para duas sessões independentes **da mesma conta administrativa MFA**; as identidades reais de passageiro/motorista ainda não foram implementadas. Cinco conjuntos de CI, incluindo PostgreSQL temporário, passaram. **Migrações não foram aplicadas no Supabase; sincronização real entre navegadores ainda aguarda autorização.** M15 permanece **1/5**, PMC **47/100 = 47%**, MC não executado.
 
 - **Versão 0.5 / 16/10/2026 — instalação da jornada compartilhada:** com autorização do proprietário, migrações `006_shared_journey_lab_DRAFT.sql` e `007_shared_journey_purge_DRAFT.sql` foram aplicadas **somente no Supabase NAVE**. Criadas tabelas `nave_v5_lab_sessions` e `nave_v5_lab_events`; três RPCs protegidas por conta administrativa/AAL2; RLS e permissões diretas/anon bloqueadas. `pg_cron` ativado para limpeza a cada 10 minutos de sessões após 30 min de validade. Verificações após a instalação: **0 sessões e 0 eventos**, permissões de acesso direto negadas e job ativo. Página de laboratório atualizada no GitHub; **teste visual real entre duas sessões ainda pendente**. M15 permanece 1/5 e progresso global 47/100 (47%), pois ainda não há viagem operacional integrada. MC não executado.
+
+- **Versão 0.6 / 16/10/2026 — MACRO-QA:** criados pacotes P01–P09, suíte extensiva Node `core/macro-qa-batches.test.js`, suíte SQL `core/migrations/008_macro_qa_isolated_test.sql`, teste de segurança da UI `core/macro-qa-ui.test.js` e painel de execução única `public/pacotes-qa.html`. Matriz das 4 categorias, 3 situações, jornadas, recusas, preços, cancelamentos, HTTP, MFA, estado persistente, controle de versão, quota e expiração. CI automatizada na branch V5 aprovada com cinco jobs. Testes de banco somente no PostgreSQL temporário; P09 entre dois navegadores ainda exige homologação manual. **Progresso permanece 47/100 (47%)**: testar mais não altera os critérios finais ainda não entregues. **MC NÃO EXECUTADO**.
 
 **Regra de update:** a cada `ATUALIZE O PMC`, recontar checkboxes e revisar provas; reportar `n/N`, `(n/N)*100`, itens concluídos, parcialidades, pendências e riscos. Nunca declarar `EXECUTAR O MC` sem comando literal do proprietário e homologação final.
