@@ -33,6 +33,9 @@ jobs:
           node --check server.js
           node --check core/pilot-notify.js
           node --check core/ride-contract.js
+          node --check core/nearest-pilot-preview.js
+          node --check core/nearest-pilot-preview.test.js
+          node --check core/nearest-pilot-http.test.js
           node --check core/preview-router.js
           node --check core/channel-compat.js
           node --check core/reservation-plan.js
@@ -80,11 +83,11 @@ jobs:
             const fs=require("fs");
             const d=JSON.parse(fs.readFileSync("/tmp/nave-pilot-readiness.json","utf8"));
             if(d.environment!=="staging" || d.notificationReady!==false ||
-               d.optIn!==false || d.metaSender!==false || d.commercialRidesEnabled!==false)
+               d.optIn!==false || d.commercialRidesEnabled!==false)
               process.exit(1);
             if(!["supabase","adminPublicKey","metaSender","optIn"].every(k=>typeof d[k]==="boolean"))
               process.exit(1);
-            console.log("Pilot notification remains safely disabled; credential readiness evaluated without secrets");
+            console.log("Pilot notification remains safely disabled; sender credentials may be configured");
           '
 
   postgres-rpc-test:
