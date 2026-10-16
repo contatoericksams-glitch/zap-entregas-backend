@@ -183,7 +183,8 @@ public class PttService extends Service {
         }
         try {
             int min=AudioRecord.getMinBufferSize(16000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT);
-            mic=new AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION,16000,
+            // Captura normal do microfone: não coloca o áudio no perfil de chamada telefônica.
+            mic=new AudioRecord(MediaRecorder.AudioSource.MIC,16000,
                     AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT,Math.max(min,4096));
             if(mic.getState()!=AudioRecord.STATE_INITIALIZED) {
                 mic.release(); mic=null; update("Microfone indisponível"); sendControl("release"); return;
@@ -222,13 +223,27 @@ public class PttService extends Service {
             int min=AudioTrack.getMinBufferSize(16000,AudioFormat.CHANNEL_OUT_MONO,AudioFormat.ENCODING_PCM_16BIT);
             track=new AudioTrack.Builder()
                 .setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    // Uso MEDIA envia a voz para o alto-falante externo do celular, não para o auricular de chamada.
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setAudioFormat(new AudioFormat.Builder().setSampleRate(16000)
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
                 .setBufferSizeInBytes(Math.max(min,8192))
                 .setTransferMode(AudioTrack.MODE_STREAM).build();
+            // Prefere explicitamente o alto-falante principal, mesmo em aparelhos com rota
+            // de voz configurada para o auricular. Se o aparelho não aceitar a preferência,
+            // USAGE_MEDIA mantém a rota normal de mídia como alternativa.
+            AudioManager manager=(AudioManager)getSystemService(AUDIO_SERVICE);
+            if(manager!=null) {
+                for(AudioDeviceInfo output: manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+                    if(output.getType()==AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+                        if(!track.setPreferredDevice(output))
+                            Log.w("RadioFamilia","Sistema não aceitou a rota preferida de alto-falante");
+                        break;
+                    }
+                }
+            }
             track.play();
             playing=true;
             AudioTrack output=track;
