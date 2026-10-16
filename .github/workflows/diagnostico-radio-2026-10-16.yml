@@ -1,0 +1,38 @@
+name: Diagnostico isolado do Radio Familia
+on:
+  push:
+    branches:
+      - diagnostico-radio-2026-10-16
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Diagnostico da API HTTP
+        run: |
+          set -eu
+          echo "Testando /health - limite 100s"
+          curl -fsS -m 100 --retry 1 --retry-delay 3 -w '\nHTTP_CODE:%{http_code} TEMPO:%{time_total}s\n' https://radio-familia-ptt.onrender.com/health
+      - name: Diagnostico WebSocket sem credenciais
+        run: |
+          node <<'NODE'
+          const u = 'wss://radio-familia-ptt.onrender.com/radio';
+          const ws = new WebSocket(u);
+          let opened = false;
+          const t = setTimeout(() => {console.error('TIMEOUT no WebSocket (70s)'); process.exit(3)}, 70000);
+          ws.addEventListener('open', () => {
+            opened=true;
+            console.log('WEBSOCKET_HANDSHAKE_OK');
+            // Sem enviar codigo: servidor deve encerrar a tentativa em 8s com codigo 4001
+          });
+          ws.addEventListener('close', (e) => {
+            clearTimeout(t);
+            console.log('WEBSOCKET_CLOSE_CODE:'+e.code);
+            console.log('SERVER_REASON:'+e.reason);
+            if(opened && e.code === 4001) { console.log('PROTOCOLO_WEBSOCKET_OK'); process.exit(0); }
+            process.exit(2);
+          });
+          ws.addEventListener('error', (e) => {
+            console.error('WEBSOCKET_ERROR '+ (e.message || 'evento error'));
+          });
+          NODE
