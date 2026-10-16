@@ -91,11 +91,11 @@ UPDATE public.nave_v5_lab_sessions SET expires_at=now()-interval '1 second'
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 DO $macro$
-DECLARE id uuid;
+DECLARE v_id uuid;
 BEGIN
- SELECT id INTO id FROM public.nave_v5_lab_sessions
- WHERE creation_key=md5('NAVE-MACRO-CAP-1')::uuid;
- IF public.nave_v5_lab_snapshot(id) IS NOT NULL
+ SELECT s.id INTO v_id FROM public.nave_v5_lab_sessions s
+ WHERE s.creation_key=md5('NAVE-MACRO-CAP-1')::uuid;
+ IF public.nave_v5_lab_snapshot(v_id) IS NOT NULL
  THEN RAISE EXCEPTION 'Expired session remains visible';END IF;
 END $macro$;
 RESET ROLE;
