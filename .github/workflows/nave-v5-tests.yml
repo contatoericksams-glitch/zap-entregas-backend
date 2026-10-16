@@ -34,6 +34,9 @@ jobs:
           node --check core/pilot-notify.js
           node --check core/ride-contract.js
           node --check core/nearest-pilot-preview.js
+          node --check core/smart-dispatch-preview.js
+          node --check core/smart-dispatch-preview.test.js
+          node --check core/smart-dispatch-http.test.js
           node --check core/road-eta-preview.js
           node --check core/road-eta-router.js
           node --check core/road-eta-preview.test.js
