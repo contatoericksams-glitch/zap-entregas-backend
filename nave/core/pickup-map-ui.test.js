@@ -4,7 +4,7 @@ const html=fs.readFileSync(path.join(__dirname,"../public/gps-piloto.html"),"utf
 test("the secure pilot GPS page has syntactically valid JavaScript",()=>{
  const match=html.match(/<script type="module">([\s\S]*?)<\/script>/);
  assert.ok(match,"module script must exist");
- const script=match[1].replace(/^import \{createClient\} from [^\n]*\n/,"");
+ const script=match[1].replace(/^\s*import \{createClient\} from [^\n]*\n/,"");
  assert.doesNotMatch(script,/^import /m,"all module imports must be stripped for parser");
  assert.doesNotThrow(()=>new vm.Script(script,{filename:"gps-piloto.js"}));
 });
