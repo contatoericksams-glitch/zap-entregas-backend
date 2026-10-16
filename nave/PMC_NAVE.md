@@ -1,5 +1,5 @@
 # NAVE — PLANO MESTRE DE CRIAÇÃO (PMC)
-**PMC v0.2 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
+**PMC v0.3 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
 
 ## 1. Identidade, escopo e comandos
 
@@ -19,7 +19,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 | Marco GPS — localização autorizada | Validado em celular | NAVE-0001 com GPS e 2.004 m até embarque fictício |
 | Marco Rotas — ETA pelas ruas | Validado em celular | OSRM ~2,69 km e ~6 min; não considera trânsito |
 | Marco SmartDispatch — multi-pilotos | Simulador construído e testado | Pontos de motoristas fictícios; sem despacho real |
-| Marco Jornada Integrada | Em construção | Laboratório completo fictício desenvolvido; integração real entre aplicativos, viagens e notificações ainda pendente |
+| Marco Laboratório de Jornada Fictícia | **Validado visualmente** | Passageiro solicita → oferta DEMO-BETA → aceita → chega ao embarque → embarque → finaliza, conforme sequência de capturas enviada pelo proprietário em 16/10/2026; sem dados persistidos |\n| Marco Jornada Integrada Real | **Pendente** | Integração entre sessões independentes, banco, motorista e passageiro ainda não homologada |
 | Marco Homologação V1 | Pendente | Recursos finais e operação segura |
 | **MC — NASCIMENTO OFICIAL** | **BLOQUEADO / NÃO EXECUTADO** | Apenas após versão final e `EXECUTAR O MC` |
 
@@ -286,7 +286,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 
 **Prioridade P0:** blocos críticos para operação final. **Prioridade P1:** operação, resiliência, suporte e controles necessários à homologação.
 
-**Próximo sprint:** (a) validar manualmente SmartDispatch OSRM com pilotos fictícios; (b) especificar jornada unificada de corrida fictícia sem mensagens externas; (c) implementar estados isolados e testar E2E; (d) obter a homologação do escopo V1.
+**Próximo sprint:** (a) especificar persistência de teste isolada, com expiração de sessão, idempotência e rollback, sem viagens comerciais; (b) separar sessões autênticas de passageiro e motorista fictício, com políticas de acesso; (c) testar solicitações concorrentes, recusa, aceite, cancelamento e fechamento em dois navegadores, sem WhatsApp; (d) integrar notificações reais somente após autorização independente; (e) seguir a homologação do escopo V1.
 
 **Bloqueadores de MC:** aplicativos definitivos não integrados; despacho real ainda não homologado; ciclo de corrida incompleto; pagamentos pendentes; suporte/legal e homologação final pendentes; usuário ainda não emitiu `EXECUTAR O MC`.
 
@@ -299,5 +299,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 - GitHub Actions: última bateria da branch V5 verificada com sucesso em 16/10/2026.
 - **Versão 0.1 / 16/10/2026:** início do controle PMC NAVE em 20 módulos; 47% por critérios. MC não executado.
 - **Versão 0.2 / 16/10/2026:** sprint de laboratório integrado passageiro → cotação fictícia → seleção de DEMO-motorista → oferta na própria tela → aceitar/recusar → chegada → embarque → finalizar. Cenários de motorista ocupado, recusa, cancelamento e ausência de rota. Arquivos `nave/core/journey-lab.js`, `nave/core/journey-lab.test.js`, `nave/public/jornada-integrada.html`, rota `/api/v5/journey-lab`. Protocolo sem banco, sem GPS, sem Meta e sem pagamentos. **47/100 (47%) mantidos**, porque os critérios remanescentes exigem integração real, aparelhos e homologação; não confundir um simulador funcional com conclusão da jornada final. MC não executado.
+
+- **Versão 0.3 / 16/10/2026 — validação visual humana:** capturas do usuário demonstraram toda a sequência do laboratório NAVE Eco, motorista fictício DEMO-BETA, valor ilustrativo R$ 13,00: solicitação / oferta / aceite / chegada ao embarque / confirmação do embarque / conclusão com status “Viagem fictícia finalizada” em ambas as visões e indicação “mensagens enviadas: 0”. **Marco Laboratório de Jornada Fictícia HOMOLOGADO VISUALMENTE**. **Não representa corrida entre aparelhos reais, transação persistida nem operação final.** M15 permanece **1/5** e PMC **47/100 (47%)**, sem extrapolar evidência. MC não executado.
 
 **Regra de update:** a cada `ATUALIZE O PMC`, recontar checkboxes e revisar provas; reportar `n/N`, `(n/N)*100`, itens concluídos, parcialidades, pendências e riscos. Nunca declarar `EXECUTAR O MC` sem comando literal do proprietário e homologação final.
