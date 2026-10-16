@@ -1,6 +1,6 @@
 # NAVE V5 — PLANO MACRO DE TESTES (MACRO-QA)
 
-**Edição 1.0 · 16/10/2026 · Staging apenas · MC não executado**
+**Edição 1.1 · 16/10/2026 · Staging apenas · MC não executado**
 
 ## Objetivo
 Reduzir a quantidade de testes manuais repetitivos; executar várias categorias, estados e exceções automaticamente, com provas no GitHub e visualização simplificada no navegador. **Não alterar o numerador do PMC se um critério funcional final continuar pendente.** A matriz mede a qualidade do código e da homologação, não percentuais fictícios de conclusão.
@@ -37,8 +37,8 @@ Reduzir a quantidade de testes manuais repetitivos; executar várias categorias,
 
 ## Entrega e impacto no PMC
 
-**Fase QA automatizada:** implementada, bateria CI de cinco jobs verificada como `success`. Para declarar "homologado em campo", faltam a execução no painel e o P09 por duas sessões.
+**Fase QA automatizada:** aprovada em GitHub Actions [38928889079](https://github.com/contatoericksams-glitch/zap-entregas-backend/actions/runs/38928889079): P01–P05 na API staging (885 verificações, 0 falhas, 85 requisições); P06–P08 em PostgreSQL temporário. **P09 homologado em escopo DEMO** por confirmação humana de uso em segunda janela e sequência persistente completa (`start → accept → arrive → board → complete`, versão 5, estado `completed`) verificada no Supabase NAVE em 16/10/2026. A instrumentação não prova identidades distintas; ambos os papéis usam a mesma conta administrativa autenticada com MFA.
 
 **PMC:** permanece `47/100 (47%)`. Os novos testes não dão pontos por si só; ao passar um critério funcional completo listado no PMC, anexar evidência e atualizar o checkbox correspondente. **MC = NÃO EXECUTADO**.
 
-Próxima prioridade funcional: homologar P09; então iniciar identidade separada de passageiros e motoristas e a jornada final, mantendo o webhook Meta operacional intocado.
+Próxima prioridade funcional: implementar autenticação real separada de passageiros e motoristas e jornada final, com testes E2E em dois aparelhos/contas distintas, mantendo o webhook Meta operacional intocado.
