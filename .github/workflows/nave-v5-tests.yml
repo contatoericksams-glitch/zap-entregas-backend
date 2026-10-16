@@ -87,6 +87,14 @@ jobs:
           curl --silent --show-error --fail --max-time 50 "$BASE/jornada-integrada.html" -o /tmp/nave-journey.html
           grep -Fq "Jornada integrada" /tmp/nave-journey.html
           grep -Fq "/api/v5/journey-lab" /tmp/nave-journey.html
+          # Persistent lab is staged as UI only until explicit permission to apply SQL migrations.
+          curl --silent --show-error --fail --max-time 50 "$BASE/jornada-compartilhada.html" -o /tmp/nave-shared-lab.html
+          grep -Fq "Jornada compartilhada" /tmp/nave-shared-lab.html
+          grep -Fq "nave_v5_lab_snapshot" /tmp/nave-shared-lab.html
+          grep -Fq "mesma conta administrativa com MFA" /tmp/nave-shared-lab.html
+          grep -Fq "Migração" /tmp/nave-shared-lab.html || grep -Fq "migração" /tmp/nave-shared-lab.html
+          echo "Shared lab page present; SQL remains separately approval-gated"
+
           curl --silent --show-error --fail --max-time 50 \
             -X POST -H 'Content-Type: application/json' \
             -d '{"action":"start","category":"eco","scenario":"normal"}' \
