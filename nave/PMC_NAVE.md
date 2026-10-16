@@ -1,5 +1,5 @@
 # NAVE — PLANO MESTRE DE CRIAÇÃO (PMC)
-**PMC v0.4 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
+**PMC v0.5 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
 
 ## 1. Identidade, escopo e comandos
 
@@ -19,7 +19,8 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 | Marco GPS — localização autorizada | Validado em celular | NAVE-0001 com GPS e 2.004 m até embarque fictício |
 | Marco Rotas — ETA pelas ruas | Validado em celular | OSRM ~2,69 km e ~6 min; não considera trânsito |
 | Marco SmartDispatch — multi-pilotos | Simulador construído e testado | Pontos de motoristas fictícios; sem despacho real |
-| Marco Laboratório de Jornada Fictícia | **Validado visualmente** | Passageiro solicita → oferta DEMO-BETA → aceita → chega ao embarque → embarque → finaliza, conforme sequência de capturas enviada pelo proprietário em 16/10/2026; sem dados persistidos |\n| Marco Jornada Integrada Real | **Pendente** | Integração entre sessões independentes, banco, motorista e passageiro ainda não homologada |
+| Marco Laboratório de Jornada Fictícia | **Validado visualmente** | Passageiro solicita → oferta DEMO-BETA → aceita → chega ao embarque → embarque → finaliza, conforme sequência de capturas enviada pelo proprietário em 16/10/2026; sem dados persistidos |\n| Marco Estado Persistente de Teste | **Estrutura instalada, homologação humana pendente** | Tabelas e RPCs de sessões fictícias no Supabase, testes isolados e limpeza ativa; simulação entre dois navegadores ainda não confirmada em campo |
+| Marco Jornada Integrada Real | **Pendente** | Integração entre sessões independentes, banco, motorista e passageiro ainda não homologada |
 | Marco Homologação V1 | Pendente | Recursos finais e operação segura |
 | **MC — NASCIMENTO OFICIAL** | **BLOQUEADO / NÃO EXECUTADO** | Apenas após versão final e `EXECUTAR O MC` |
 
@@ -286,7 +287,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 
 **Prioridade P0:** blocos críticos para operação final. **Prioridade P1:** operação, resiliência, suporte e controles necessários à homologação.
 
-**Próximo sprint:** (a) obter autorização explícita para aplicar somente migrações 006/007 no Supabase NAVE; (b) validar permissões e limpeza com consultas sem dados pessoais; (c) testar duas sessões administrativas com MFA em dois navegadores, uma como passageiro DEMO e outra como motorista DEMO; (d) evoluir a autenticação separada de passageiro e motorista; (e) manter WhatsApp, GPS e corridas comerciais isolados até futuras autorizações.
+**Próximo sprint:** (a) homologar a jornada compartilhada entre dois navegadores usando a mesma conta administrativa MFA; (b) testar recusas concorrentes, aceite duplicado e expiração após 30 min em campo; (c) evoluir autenticação independente de passageiro e motorista antes de qualquer ligação à plataforma final; (d) manter WhatsApp, GPS e corridas comerciais isolados até novas autorizações.
 
 **Bloqueadores de MC:** aplicativos definitivos não integrados; despacho real ainda não homologado; ciclo de corrida incompleto; pagamentos pendentes; suporte/legal e homologação final pendentes; usuário ainda não emitiu `EXECUTAR O MC`.
 
@@ -303,5 +304,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 - **Versão 0.3 / 16/10/2026 — validação visual humana:** capturas do usuário demonstraram toda a sequência do laboratório NAVE Eco, motorista fictício DEMO-BETA, valor ilustrativo R$ 13,00: solicitação / oferta / aceite / chegada ao embarque / confirmação do embarque / conclusão com status “Viagem fictícia finalizada” em ambas as visões e indicação “mensagens enviadas: 0”. **Marco Laboratório de Jornada Fictícia HOMOLOGADO VISUALMENTE**. **Não representa corrida entre aparelhos reais, transação persistida nem operação final.** M15 permanece **1/5** e PMC **47/100 (47%)**, sem extrapolar evidência. MC não executado.
 
 - **Versão 0.4 / 16/10/2026 — sprint de estado compartilhado (migração pendente):** construída uma estrutura isolada de sessões fictícias com persistência PostgreSQL: `006_shared_journey_lab_DRAFT.sql` (tabela de sessões e eventos, RPCs `nave_v5_lab_start`, `nave_v5_lab_snapshot`, `nave_v5_lab_advance`, MFA administrativo, RLS, controle de versão, idempotência, 30 minutos de validade) e `007_shared_journey_purge_DRAFT.sql` para limpeza periódica. Nova interface `jornada-compartilhada.html` para duas sessões independentes **da mesma conta administrativa MFA**; as identidades reais de passageiro/motorista ainda não foram implementadas. Cinco conjuntos de CI, incluindo PostgreSQL temporário, passaram. **Migrações não foram aplicadas no Supabase; sincronização real entre navegadores ainda aguarda autorização.** M15 permanece **1/5**, PMC **47/100 = 47%**, MC não executado.
+
+- **Versão 0.5 / 16/10/2026 — instalação da jornada compartilhada:** com autorização do proprietário, migrações `006_shared_journey_lab_DRAFT.sql` e `007_shared_journey_purge_DRAFT.sql` foram aplicadas **somente no Supabase NAVE**. Criadas tabelas `nave_v5_lab_sessions` e `nave_v5_lab_events`; três RPCs protegidas por conta administrativa/AAL2; RLS e permissões diretas/anon bloqueadas. `pg_cron` ativado para limpeza a cada 10 minutos de sessões após 30 min de validade. Verificações após a instalação: **0 sessões e 0 eventos**, permissões de acesso direto negadas e job ativo. Página de laboratório atualizada no GitHub; **teste visual real entre duas sessões ainda pendente**. M15 permanece 1/5 e progresso global 47/100 (47%), pois ainda não há viagem operacional integrada. MC não executado.
 
 **Regra de update:** a cada `ATUALIZE O PMC`, recontar checkboxes e revisar provas; reportar `n/N`, `(n/N)*100`, itens concluídos, parcialidades, pendências e riscos. Nunca declarar `EXECUTAR O MC` sem comando literal do proprietário e homologação final.
