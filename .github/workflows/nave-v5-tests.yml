@@ -76,6 +76,8 @@ jobs:
           echo "Pilot HTML present (outbound test disabled)"
           curl --silent --show-error --fail --max-time 50 "$BASE/gps-piloto.html" -o /tmp/nave-gps.html
           grep -q "Você controla sua localização" /tmp/nave-gps.html
+          grep -q "Verificar meu GPS no radar" /tmp/nave-gps.html
+          grep -q "nave_v5_nearest_pilot_demo" /tmp/nave-gps.html
           grep -q "start\").disabled=true" /tmp/nave-gps.html
           echo "Pilot GPS page available and start disabled before approved RPC"
           curl --silent --show-error --fail --max-time 50 "$BASE/radar-demo.html" -o /tmp/nave-radar.html
