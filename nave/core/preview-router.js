@@ -6,6 +6,7 @@ const { previewTestQuote, CATEGORY_CODES } = require("./ride-contract");
 const { preparePilotOfferPreview } = require("./pilot-offer-preview");
 const { previewNearestPilot } = require("./nearest-pilot-preview");
 const { rankSimulatedDrivers } = require("./smart-dispatch-preview");
+const { simulateJourney } = require("./journey-lab");
 
 function createPreviewRouter() {
   const router = express.Router();
@@ -71,6 +72,17 @@ function createPreviewRouter() {
     }catch(error){
       if(error instanceof TypeError||error instanceof RangeError)
         return res.status(400).json({error:"invalid_fictional_dispatch"});
+      return res.sendStatus(503);
+    }
+  });
+  // State-machine preview ONLY; no real passengers, persistence or WhatsApp sends.
+  router.post("/journey-lab", express.json({limit:"5kb"}), (req,res)=>{
+    res.set("Cache-Control","no-store");
+    try {
+      return res.status(200).json(simulateJourney(req.body));
+    } catch(error){
+      if(error instanceof TypeError||error instanceof RangeError)
+        return res.status(400).json({error:"invalid_fictional_journey_state"});
       return res.sendStatus(503);
     }
   });
