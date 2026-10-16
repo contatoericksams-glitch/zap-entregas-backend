@@ -1,0 +1,50 @@
+name: Radio Familia V2 Matrix - APK e testes
+on:
+  push:
+    branches: [radio-familia-v2-matrix]
+    paths:
+      - 'radio-familia-ptt/android/**'
+      - 'radio-familia-v2/backend/**'
+      - '.github/workflows/radio-familia-v2-matrix.yml'
+  workflow_dispatch:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias
+        working-directory: radio-familia-v2/backend
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Sintaxe do servidor
+        working-directory: radio-familia-v2/backend
+        run: node --check server.js
+      - name: Testes WebSocket e canais
+        working-directory: radio-familia-v2/backend
+        run: node test.js
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Preparar Android SDK 35
+        run: |
+          SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          "$SDKMGR" --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compilar V2 APK
+        working-directory: radio-familia-ptt/android
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - name: Guardar instalador V2
+        uses: actions/upload-artifact@v4
+        with:
+          name: Radio-Familia-V2-Matrix-APK
+          path: radio-familia-ptt/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
