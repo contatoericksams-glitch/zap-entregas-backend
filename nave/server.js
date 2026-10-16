@@ -176,6 +176,15 @@ if (process.env.NODE_ENV === "staging") {
   app.use("/api/v5", createPreviewRouter());
 }
 
+// V5 road ETA: isolated staging-only, MFA admin, explicitly consented routing.
+// Does not enable the WhatsApp webhook, ride persistence or commercial dispatch.
+if (process.env.NODE_ENV === "staging" && config.supabaseUrl && process.env.SUPABASE_PUBLISHABLE_KEY) {
+  const { createMasterAuth } = require("../central-master-v4/master-auth");
+  const { createRoadEtaRouter } = require("./core/road-eta-router");
+  const requireMaster = createMasterAuth(config.supabaseUrl, process.env.SUPABASE_PUBLISHABLE_KEY);
+  app.use("/api/v5", createRoadEtaRouter({requireMaster}));
+}
+
 // Safe preflight: booleans only, never return tokens, phone numbers or identities.
 if (process.env.NODE_ENV === "staging") {
   app.get("/api/v5/pilot-readiness", (_req, res) => {
