@@ -106,8 +106,9 @@ public class MainActivity extends Activity implements PttService.Listener {
         });
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(220),dp(220));
         p.gravity=Gravity.CENTER_HORIZONTAL; p.topMargin=dp(24); root.addView(talkButton,p);
-        TextView hint=text("Para falar, deixe a tela do rádio aberta.\nPara ouvir, ele pode permanecer em segundo plano enquanto estiver conectado.",12,Color.rgb(150,176,174),false);
+        TextView hint=text("🔊 Áudio pelo alto-falante principal. Use os botões de volume de MÍDIA para ajustar.\nPara falar, deixe a tela do rádio aberta. Para ouvir, mantenha o canal conectado.",12,Color.rgb(150,176,174),false);
         hint.setGravity(Gravity.CENTER); add(root,hint,21);
+        setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
         setContentView(scroll);
         bindService(new Intent(this,PttService.class),serviceConnection,Context.BIND_AUTO_CREATE);
         requestPermissions();
