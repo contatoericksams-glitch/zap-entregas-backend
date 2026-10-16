@@ -5,6 +5,7 @@ const express = require("express");
 const { previewTestQuote, CATEGORY_CODES } = require("./ride-contract");
 const { preparePilotOfferPreview } = require("./pilot-offer-preview");
 const { previewNearestPilot } = require("./nearest-pilot-preview");
+const { rankSimulatedDrivers } = require("./smart-dispatch-preview");
 
 function createPreviewRouter() {
   const router = express.Router();
@@ -57,6 +58,19 @@ function createPreviewRouter() {
     } catch(error) {
       if (error instanceof RangeError || error instanceof TypeError)
         return res.status(400).json({ error: "invalid_simulation_input" });
+      return res.sendStatus(503);
+    }
+  });
+  // Fictional test fixtures ONLY. ETAs supplied here are mock values,
+  // not OSRM output, live GPS, or a dispatch of a real driver.
+  router.post("/smart-dispatch-preview", express.json({limit:"12kb"}), (req,res)=>{
+    res.set("Cache-Control","no-store");
+    try{
+      const result=rankSimulatedDrivers(req.body);
+      return res.status(200).json(result);
+    }catch(error){
+      if(error instanceof TypeError||error instanceof RangeError)
+        return res.status(400).json({error:"invalid_fictional_dispatch"});
       return res.sendStatus(503);
     }
   });
