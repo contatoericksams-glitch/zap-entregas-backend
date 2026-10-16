@@ -134,6 +134,14 @@ jobs:
             console.log("Fictional dispatch simulator available with no writes or WhatsApp sends");
           '
 
+          curl --silent --show-error --fail --max-time 50 "$BASE/smart-dispatch-rotas.html" -o /tmp/nave-smart-osrm.html
+          grep -Fq "ROTEAMENTO REAL · PONTOS FICTÍCIOS" /tmp/nave-smart-osrm.html
+          grep -Fq "id=\"providerConsent\"" /tmp/nave-smart-osrm.html
+          grep -Fq "/api/v5/smart-dispatch-osrm" /tmp/nave-smart-osrm.html
+          # The provider must never be queried for unauthenticated or unconsented requests.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"simulation":true,"consentExternalRouting":true,"category":"eco","scenario":"all"}' "$BASE/api/v5/smart-dispatch-osrm")" = "401"
+          echo "OSRM matrix page available, third-party route endpoint MFA protected"
+
           # Inbound webhook must stay forbidden in homologation regardless of credentials.
           test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/webhook")" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/webhook")" = "404"
