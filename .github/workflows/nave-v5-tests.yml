@@ -74,6 +74,22 @@ jobs:
           curl --silent --show-error --fail --max-time 50 "$BASE/pilot-app-test.html" -o /tmp/nave-pilot.html
           grep -q "NAVE" /tmp/nave-pilot.html
           echo "Pilot HTML present (outbound test disabled)"
+          curl --silent --show-error --fail --max-time 50 "$BASE/radar-demo.html" -o /tmp/nave-radar.html
+          grep -q "Radar de despacho" /tmp/nave-radar.html
+          NOW=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          cat > /tmp/nave-nearest-payload.json <<JSON
+          {"simulation":true,"category":"eco","pickup":{"lat":-24.73,"lng":-53.74},"candidates":[{"id":"DEMO-TEST","location":{"lat":-24.731,"lng":-53.741},"positionUpdatedAt":"$NOW","locationSource":"simulated","testOnly":true,"testEnabled":true,"online":true,"verified":true,"electricVehicle":true,"activeOffer":false,"categories":["eco"]}]}
+          JSON
+          curl --silent --show-error --fail --max-time 50 -H 'Content-Type: application/json' -d @/tmp/nave-nearest-payload.json "$BASE/api/v5/nearest-pilot-preview" -o /tmp/nave-nearest-result.json
+          node -e '
+            const fs=require("fs");
+            const d=JSON.parse(fs.readFileSync("/tmp/nave-nearest-result.json","utf8"));
+            if(d.selected?.id!=="DEMO-TEST" || d.testOnly!==true ||
+               d.whatsappSendEnabled!==false || d.liveGpsEnabled!==false ||
+               d.commercialRidesEnabled!==false)process.exit(1);
+            console.log("Fictional dispatch simulator available with no writes or WhatsApp sends");
+          '
+
           # Inbound webhook must stay forbidden in homologation regardless of credentials.
           test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/webhook")" = "404"
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' "$BASE/webhook")" = "404"
