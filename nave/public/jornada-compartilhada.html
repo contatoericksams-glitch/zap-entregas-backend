@@ -1,0 +1,246 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#071826"><title>NAVE | Jornada Compartilhada — Homologação</title>
+<style>
+:root{font:16px system-ui,-apple-system,"Segoe UI",sans-serif;color:#efffff;background:#071725;color-scheme:dark}
+*{box-sizing:border-box}body{padding:22px 13px 44px;margin:0}
+main{max-width:850px;margin:auto}.brand{font-size:.75rem;letter-spacing:.15em;font-weight:900;color:#87f0d2}
+h1{font-size:clamp(1.7rem,5vw,2.5rem);margin:11px 0 7px}h2{font-size:1.2rem;margin:0 0 12px}
+p{color:#c0d7e1;line-height:1.56}.panel{border:1px solid #31566c;background:#112c3e;border-radius:19px;padding:20px;margin:17px 0}
+input,select{font:inherit;width:100%;background:#081e2d;color:#eafffa;border:1px solid #51788d;padding:13px;border-radius:10px}
+label{display:block;margin:13px 0 7px;font-weight:650}
+button{border:0;border-radius:11px;background:#84eacc;color:#062b2d;font:inherit;font-weight:800;padding:13px 17px;cursor:pointer}
+button:disabled{opacity:.48;cursor:not-allowed}
+button.secondary{background:#31566d;color:#f1fffb}button.danger{background:#a75362;color:#fff}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin:15px 0}
+.actions button{flex:1;min-width:150px}
+.hidden{display:none!important}.tag{display:inline-block;background:#204b48;padding:6px 12px;border-radius:99px;color:#9ef8dc;font-size:.75rem;font-weight:800}
+.status{background:#143a4a;border-left:3px solid #7ceace;border-radius:9px;padding:14px;line-height:1.52;margin:13px 0}
+.row{display:flex;gap:14px;justify-content:space-between;margin:12px 0;flex-wrap:wrap}
+.row span{color:#bdd3dc}.row b{text-align:right}
+#roomCode{font-family:ui-monospace,monospace;overflow-wrap:anywhere;color:#98efdc}
+#scene{border:1px solid #3d6174;border-radius:15px;background:#0a2231;padding:16px}
+.notice{font-size:.82rem;color:#b1c9d3}footer{color:#adc4cf;font-size:.83rem;line-height:1.6}
+</style></head><body><main>
+<div class="brand">NAVE · PLANO MESTRE DE CRIAÇÃO · M15</div>
+<h1>Jornada compartilhada ⚡</h1>
+<p>Dois navegadores acompanham a <strong>mesma jornada fictícia</strong> registrada em uma tabela isolada no Supabase. Um atua como passageiro e outro como motorista DEMO. Esta etapa exige a <strong>mesma conta administrativa com MFA em cada navegador</strong>; ainda não autentica motoristas ou passageiros reais.</p>
+<span class="tag">TESTE ISOLADO · SEM META · SEM GPS · SEM PAGAMENTO</span>
+<div class="panel">
+<h2>1. Acesso protegido</h2>
+<form id="login"><label for="email">E-mail administrativo</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required>
+<button style="width:100%;margin-top:15px">Entrar na homologação</button></form>
+<form id="mfa" class="hidden"><p>Informe o código do seu autenticador.</p>
+<label for="otp">Código MFA</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required>
+<button>Confirmar MFA</button></form>
+<div id="logged" class="hidden"><p>✅ Conta administrativa com MFA validada. Somente sessões DEMO são permitidas.</p>
+<button id="logout" class="secondary">Sair da conta</button></div>
+<div id="feedback" class="status" role="status" aria-live="polite">Nenhuma sessão conectada; nenhum dado enviado.</div>
+</div>
+<div class="panel hidden" id="workspace">
+<h2>2. Escolha a visão</h2>
+<label for="role">Papel nesta tela (apenas visualização de laboratório)</label>
+<select id="role"><option value="passenger">Passageiro DEMO</option><option value="driver">Motorista DEMO</option></select>
+<div id="newBox">
+<label for="category">Categoria fictícia</label>
+<select id="category"><option value="eco">NAVE Eco</option><option value="confort">NAVE Confort</option><option value="executive">NAVE Executive</option><option value="navegator">NAVEGATOR</option></select>
+<label for="scenario">Cenário</label>
+<select id="scenario"><option value="normal">Pilotos disponíveis</option><option value="first_busy">Piloto mais rápido ocupado</option><option value="no_route">Sem rota confiável</option></select>
+<button style="width:100%;margin-top:15px" id="create">Criar jornada fictícia compartilhada</button>
+</div>
+<hr style="border:0;border-top:1px solid #36586b;margin:19px 0">
+<label for="sessionInput">Código da jornada (copie do outro navegador)</label>
+<input id="sessionInput" placeholder="UUID da jornada fictícia" autocapitalize="off" spellcheck="false" autocomplete="off">
+<div class="actions"><button id="join" class="secondary">Abrir esta jornada</button><button id="copy" class="secondary" disabled>Copiar código</button></div>
+<p class="notice">Como testar: abra esta página em duas abas ou celulares. Faça login administrativo/MFA em ambos; crie a jornada no modo Passageiro, copie o código e abra-o no modo Motorista. A conta de acesso deve ser a mesma. Dados expiram em 30 minutos.</p>
+</div>
+<div class="panel hidden" id="ridePanel">
+<h2>3. Jornada em andamento</h2>
+<div class="row"><span>Jornada</span><b id="roomCode">—</b></div>
+<div class="row"><span>Categoria</span><b id="rideCategory">—</b></div>
+<div class="row"><span>Embarque</span><b>Centro, Toledo (teste)</b></div>
+<div class="row"><span>Destino</span><b>Região do Lago, Toledo (teste)</b></div>
+<div class="row"><span>Preço ilustrativo</span><b id="fare">—</b></div>
+<div class="row"><span>Estado</span><b id="phase">—</b></div>
+<div class="row"><span>Motorista fictício</span><b id="driverName">—</b></div>
+<div class="row"><span>Versão protegida</span><b id="version">—</b></div>
+<div id="scene"><div id="sceneText" class="status">Aguardando sincronização.</div>
+<div class="actions">
+<button id="accept" class="hidden">Aceitar (teste)</button>
+<button id="decline" class="danger hidden">Recusar (teste)</button>
+<button id="arrive" class="hidden">Cheguei ao embarque</button>
+<button id="board" class="hidden">Confirmar embarque</button>
+<button id="complete" class="hidden">Finalizar simulação</button>
+<button id="cancel" class="danger hidden">Cancelar simulação</button>
+</div></div>
+<p class="notice">O painel consulta mudanças periodicamente, somente enquanto a aba está visível. Comandos são protegidos por versão e identificador único para não aceitar a mesma oferta duas vezes. Isto não é uma viagem real.</p>
+</div>
+<div class="panel">
+<h2>Proteções desta etapa</h2>
+<p>Nesta fase, a única persistência prevista é a de <strong>estados de teste</strong>. Não há geolocalização, dinheiro, conta de passageiros, Meta, corridas reais nem criação de ofertas comerciais. Sem MFA administrativo válido, a API não permite consultar nem alterar uma jornada.</p>
+<p>Se o banco ainda não tiver a migração de homologação aprovada, o sistema indicará que a etapa não está disponível. Essa migração não é aplicada automaticamente ao abrir a página.</p>
+</div>
+<footer>NAVE V5 · PMC em construção. Sessões limitadas, identificadores DEMO e prazo máximo de 30 minutos. O Marco Histórico de Nascimento (MC) continua não executado.</footer>
+</main>
+<script src="/pilot-test-config.js"></script>
+<script type="module">
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2.49.0";
+const $=id=>document.getElementById(id);
+const cfg=window.NAVE_TEST_PUBLIC_CONFIG;
+const text=t=>{$("feedback").textContent=t};
+const labels={eco:"NAVE Eco",confort:"NAVE Confort",executive:"NAVE Executive",navegator:"NAVEGATOR"};
+const phaseLabels={offer_pending:"Aguardando motorista",driver_to_pickup:"Motorista a caminho",
+ at_pickup:"Motorista chegou",in_trip:"Viagem fictícia em andamento",completed:"Viagem fictícia finalizada",
+ cancelled:"Jornada cancelada",no_driver:"Nenhum piloto disponível"};
+const actions=["accept","decline","arrive","board","complete","cancel"];
+const hidden=(id,hide)=>$(id).classList.toggle("hidden",hide);
+let client=null,factorId=null,authenticated=false,current=null,poll=null,pendingAction=null,pendingCreation=null,busy=false;
+const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const valid=d=>d&&typeof d==="object"&&d.testOnly===true&&d.simulation===true&&
+ d.persistenceEnabled===true&&d.whatsappSendEnabled===false&&
+ d.commercialRidesEnabled===false&&d.paymentsEnabled===false&&
+ d.realGpsUsed===false&&d.driverAuthenticationReady===false;
+function controls(){
+ const role=$("role").value;
+ hidden("newBox",role!=="passenger");
+ for(const a of actions)hidden(a,true);
+ if(!current||busy)return;
+ const phase=current.phase;
+ if(role==="passenger")hidden("cancel",!["offer_pending","driver_to_pickup","at_pickup"].includes(phase));
+ else{
+  hidden("accept",phase!=="offer_pending");hidden("decline",phase!=="offer_pending");
+  hidden("arrive",phase!=="driver_to_pickup");hidden("board",phase!=="at_pickup");
+  hidden("complete",phase!=="in_trip");
+ }
+}
+function render(d){
+ if(!valid(d))throw Error("Unsafe response");
+ current=d;hidden("ridePanel",false);$("copy").disabled=false;
+ $("sessionInput").value=d.id;
+ $("roomCode").textContent=d.id;
+ $("rideCategory").textContent=labels[d.categoryCode]||d.categoryCode;
+ $("fare").textContent=(d.fareCents/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+ $("phase").textContent=phaseLabels[d.phase]||d.phase;
+ $("version").textContent=String(d.version);
+ $("driverName").textContent=d.driverCode||"Nenhum motorista elegível";
+ const name=d.driverCode||"nenhum motorista";
+ const messages={
+ offer_pending:"🧪 Uma oferta fictícia está disponível para "+name+". Nenhum WhatsApp foi enviado.",
+ driver_to_pickup:"✅ "+name+" aceitou a simulação e está a caminho do embarque.",
+ at_pickup:"📍 "+name+" chegou ao ponto de embarque fictício.",
+ in_trip:"🚘 Embarque de teste confirmado; jornada fictícia em andamento.",
+ completed:"🏁 Jornada fictícia concluída nos dois navegadores; nenhuma cobrança.",
+ cancelled:"✋ Simulação cancelada; nenhum pagamento realizado.",
+ no_driver:"⌛ Nenhuma rota ou piloto elegível; não houve despacho."
+ };
+ $("sceneText").textContent=messages[d.phase]||"Sem atualização";
+ controls();
+}
+async function status(){
+ if(!authenticated||!current||busy||document.hidden)return;
+ const {data,error}=await client.rpc("nave_v5_lab_snapshot",{p_id:current.id});
+ if(error){text("Não foi possível sincronizar o laboratório.");return}
+ if(data===null){current=null;hidden("ridePanel",true);text("Jornada expirada ou acesso não autorizado. Crie um novo teste.");return}
+ if(data.version!==current.version)render(data);
+}
+function startPoll(){if(poll!==null)clearInterval(poll);poll=setInterval(()=>{void status()},3000)}
+async function authorize(){
+ const a=await client.auth.mfa.getAuthenticatorAssuranceLevel();if(a.error)throw a.error;
+ const admin=await client.rpc("nave_is_admin");if(admin.error||admin.data!==true)throw Error("Unauthorized");
+ if(a.data.currentLevel!=="aal2"){
+  const f=await client.auth.mfa.listFactors();if(f.error)throw f.error;
+  factorId=f.data.totp?.find(x=>x.status==="verified")?.id;
+  if(!factorId)throw Error("MFA factor unavailable");
+  hidden("login",true);hidden("mfa",false);text("Confirme o MFA para liberar o laboratório.");return;
+ }
+ authenticated=true;hidden("login",true);hidden("mfa",true);hidden("logged",false);
+ hidden("workspace",false);text("MFA confirmado. Crie ou abra uma jornada de teste.");
+ startPoll();
+}
+if(!cfg?.supabaseUrl||!cfg?.publishableKey){
+ text("Configuração pública de homologação indisponível.");
+ $("login").querySelector("button").disabled=true;
+}else client=createClient(cfg.supabaseUrl,cfg.publishableKey,{
+ auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
+});
+$("login").onsubmit=async e=>{
+ e.preventDefault();
+ try{const a=await client.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+ $("password").value="";if(a.error)throw a.error;await authorize()}
+ catch(_){text("Não foi possível validar a conta. Confira login e MFA.")}
+};
+$("mfa").onsubmit=async e=>{
+ e.preventDefault();
+ try{const code=$("otp").value.trim();if(!/^[0-9]{6}$/.test(code))throw Error("Invalid OTP");
+  const c=await client.auth.mfa.challenge({factorId});if(c.error)throw c.error;
+  const v=await client.auth.mfa.verify({factorId,challengeId:c.data.id,code});if(v.error)throw v.error;
+  $("otp").value="";await authorize();
+ }catch(_){text("Código MFA não confirmado.")}
+};
+$("role").onchange=()=>{controls();};
+$("create").onclick=async()=>{
+ if(!authenticated||busy)return;
+ busy=true;$("create").disabled=true;
+ try{
+  if(!pendingCreation)pendingCreation=crypto.randomUUID();
+  const {data,error}=await client.rpc("nave_v5_lab_start",{
+   p_category:$("category").value,p_scenario:$("scenario").value,p_creation_key:pendingCreation
+  });
+  if(error)throw error;
+  if(!valid(data))throw Error("Invalid server response");
+  pendingCreation=null;render(data);text("Jornada fictícia criada no Supabase. Copie o código e abra em outro navegador.");
+ }catch(_){text("Laboratório persistente ainda não habilitado ou sem acesso. Não foi criada nenhuma corrida real.")}
+ finally{busy=false;$("create").disabled=false;controls();}
+};
+$("join").onclick=async()=>{
+ if(!authenticated||busy)return;
+ const id=$("sessionInput").value.trim();
+ if(!uuidPattern.test(id)){text("Informe um código de jornada válido.");return}
+ busy=true;
+ try{const {data,error}=await client.rpc("nave_v5_lab_snapshot",{p_id:id});
+ if(error)throw error;if(!valid(data))throw Error("Not found");
+ render(data);text("Jornada aberta nesta sessão. Aguarde as atualizações do outro navegador.");
+ }catch(_){text("Jornada não encontrada, expirada ou sem autorização.")}
+ finally{busy=false;controls();}
+};
+$("copy").onclick=async()=>{
+ if(!current)return;
+ try{await navigator.clipboard.writeText(current.id);text("Código copiado. Abra a NAVE no segundo navegador, entre com MFA e cole em Abrir esta jornada.");}
+ catch(_){text("Selecione e copie manualmente o código exibido.");}
+};
+for(const action of actions){
+ $(action).onclick=async()=>{
+  if(!authenticated||!current||busy)return;
+  const actor=action==="cancel"?"passenger":"driver";
+  if((actor==="passenger")!==($("role").value==="passenger"))return;
+  busy=true;controls();
+  const key=(pendingAction?.action===action&&pendingAction?.version===current.version)?
+   pendingAction.key:crypto.randomUUID();
+  pendingAction={key,action,version:current.version};
+  const room=current.id;
+  try{
+   const {data,error}=await client.rpc("nave_v5_lab_advance",{
+    p_id:room,p_expected_version:current.version,p_action_key:key,p_action:action,p_actor:actor
+   });
+   if(error)throw error;
+   if(data?.error==="version_conflict"){
+    if(valid(data.current))render(data.current);
+    text("Outra sessão atualizou a jornada primeiro. Estado sincronizado, sem duplicar a ação.");
+   }else if(valid(data)){
+    render(data);text("Transição fictícia registrada com versão "+data.version+". Nenhuma mensagem nem cobrança.");
+   }else throw Error("Invalid transition");
+   pendingAction=null;
+  }catch(_){text("Não foi possível confirmar esta ação; tente novamente ou aguarde a atualização da outra sessão.")}
+  finally{busy=false;controls();}
+ };
+}
+$("logout").onclick=async()=>{
+ if(poll!==null){clearInterval(poll);poll=null}
+ current=null;authenticated=false;await client.auth.signOut();
+ hidden("logged",true);hidden("login",false);hidden("workspace",true);hidden("ridePanel",true);
+ text("Sessão encerrada. Nenhuma corrida real foi criada.");
+};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)void status()});
+</script></body></html>
