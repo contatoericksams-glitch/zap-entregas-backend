@@ -30,7 +30,7 @@ test("client uses UUID request keys and version locking; no offline impersonatio
  assert.match(html,/p_action_key:key/);
  assert.match(html,/data\?\.error==="version_conflict"/);
  assert.match(html,/client\.rpc\("nave_v5_lab_snapshot"/);
- assert.match(html,/a mesma conta administrativa com MFA/i);
+ assert.match(html,/mesma conta administrativa com MFA/i);
  assert.match(html,/ainda não autentica motoristas ou passageiros reais/i);
 });
 test("migration restricts all exposed tables; only AAL2 admin can use security definer RPC",()=>{
