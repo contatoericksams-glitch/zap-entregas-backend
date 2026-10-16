@@ -89,13 +89,16 @@ RESET ROLE;
 -- Emulate 30-minute expiration, then verify fail-closed access and physical cleanup.
 UPDATE public.nave_v5_lab_sessions SET expires_at=now()-interval '1 second'
  WHERE creation_key=md5('NAVE-MACRO-CAP-1')::uuid;
+-- CI superuser resolves a private ID before switching back to the restricted role.
+SELECT set_config('macro.expired.id',
+ (SELECT id::text FROM public.nave_v5_lab_sessions
+  WHERE creation_key=md5('NAVE-MACRO-CAP-1')::uuid),false);
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false);
 DO $macro$
 DECLARE v_id uuid;
 BEGIN
- SELECT s.id INTO v_id FROM public.nave_v5_lab_sessions s
- WHERE s.creation_key=md5('NAVE-MACRO-CAP-1')::uuid;
+ v_id:=current_setting('macro.expired.id')::uuid;
  IF public.nave_v5_lab_snapshot(v_id) IS NOT NULL
  THEN RAISE EXCEPTION 'Expired session remains visible';END IF;
 END $macro$;
