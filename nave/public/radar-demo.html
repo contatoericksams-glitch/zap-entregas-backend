@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NAVE | Radar de despacho fictício</title>
+<style>
+:root{font-family:system-ui,-apple-system,Arial,sans-serif;background:#071724;color:#f5fbff}
+*{box-sizing:border-box}body{margin:0;padding:20px;min-height:100vh}
+main{max-width:760px;margin:auto}.eyebrow{font-size:.78rem;letter-spacing:.16em;color:#7be9d0;font-weight:800}
+h1{font-size:clamp(1.55rem,4vw,2.25rem);margin:12px 0}p{color:#c2d1db;line-height:1.5}
+.panel{background:#10283b;border:1px solid #27516a;border-radius:20px;padding:20px;margin-top:20px}
+small,.hint{color:#a9c1d1}button{font:inherit;border:0;cursor:pointer}
+.categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:16px}
+.category{border:1px solid #3a6376;border-radius:12px;padding:13px;color:#eafbf9;background:#183549;font-weight:700}
+.category.active{border-color:#72ebcd;background:#185c59;color:#fff}
+.cta{width:100%;padding:15px 10px;border-radius:12px;background:#73e6c7;color:#0c2430;font-weight:900;margin-top:18px}
+table{width:100%;border-collapse:collapse;font-size:.89rem}th{text-align:left;color:#a9c1d1;font-weight:500}
+td,th{padding:11px 5px;border-bottom:1px solid #2b4558}td:last-child,th:last-child{text-align:right}
+.tag{color:#79e8d1;font-weight:700}.muted{color:#c2d1db}
+#result{padding:14px 16px;border-left:3px solid #7ceccf;background:#163444;border-radius:8px;margin-top:16px;min-height:65px}
+a{color:#7be9d0}footer{font-size:.8rem;line-height:1.5;margin-top:24px;color:#a9c1d1}
+</style></head><body><main>
+<div class="eyebrow">CENTRAL NAVE / LABORATÓRIO V5</div>
+<h1>Radar de despacho <span style="color:#77ead0">⚡</span></h1>
+<p>Simule como a NAVE escolherá o piloto mais próximo do embarque. Todos os pilotos, coordenadas e distâncias desta página são <strong>fictícios</strong>. Nenhuma corrida ou mensagem é criada.</p>
+<div class="panel">
+  <small>EMBARQUE FICTÍCIO · REGIÃO DE TOLEDO</small>
+  <h2 style="margin:8px 0">Escolha a categoria</h2>
+  <div class="categories" role="group" aria-label="Categoria simulada">
+    <button type="button" class="category active" data-cat="eco">NAVE Eco</button>
+    <button type="button" class="category" data-cat="confort">NAVE Confort</button>
+    <button type="button" class="category" data-cat="executive">NAVE Executive</button>
+    <button type="button" class="category" data-cat="navegator">NAVEGATOR</button>
+  </div>
+  <button type="button" class="cta" id="simulate">Simular motorista mais próximo</button>
+  <div id="result" role="status" aria-live="polite">Escolha uma categoria e inicie a simulação.</div>
+</div>
+<div class="panel">
+  <h2 style="margin:0 0 10px">Pilotos fictícios</h2>
+  <table><thead><tr><th>Exemplo</th><th>Condição</th><th>Compatibilidade</th></tr></thead>
+  <tbody>
+  <tr><td>DEMO-ALFA</td><td class="tag">ONLINE</td><td>Eco, Confort</td></tr>
+  <tr><td>DEMO-BETA</td><td class="tag">ONLINE</td><td>4 categorias</td></tr>
+  <tr><td>DEMO-GAMA</td><td class="muted">OFFLINE</td><td>4 categorias</td></tr>
+  <tr><td>DEMO-DELTA</td><td class="muted">GPS antigo</td><td>4 categorias</td></tr>
+  </tbody></table>
+  <p class="hint">A seleção usa distância aproximada em linha reta. Tempo real de chegada e trânsito ainda não estão conectados.</p>
+</div>
+<footer>Ambiente V5 — demonstração independente. Sem acesso ao GPS dos motoristas, sem dados pessoais, sem pagamento e sem integração com o WhatsApp operacional.</footer>
+</main>
+<script>
+"use strict";
+let category="eco";
+const buttons=[...document.querySelectorAll("[data-cat]")];
+buttons.forEach(b=>b.addEventListener("click",()=>{
+  category=b.dataset.cat;
+  buttons.forEach(x=>{const active=x===b;x.classList.toggle("active",active);x.setAttribute("aria-pressed",String(active));});
+}));
+buttons.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.cat===category)));
+document.getElementById("simulate").addEventListener("click",async()=>{
+ const out=document.getElementById("result");
+ out.textContent="Calculando entre os pilotos fictícios…";
+ const fresh=new Date().toISOString(),old=new Date(Date.now()-16*60000).toISOString();
+ const common={positionUpdatedAt:fresh,locationSource:"simulated",testOnly:true,testEnabled:true,online:true,verified:true,electricVehicle:true,activeOffer:false};
+ const all=["eco","confort","executive","navegator"];
+ const candidates=[
+  {...common,id:"DEMO-ALFA",location:{lat:-24.7307,lng:-53.7433},categories:["eco","confort"]},
+  {...common,id:"DEMO-BETA",location:{lat:-24.7370,lng:-53.7510},categories:all},
+  {...common,id:"DEMO-GAMA",location:{lat:-24.7304,lng:-53.7432},categories:all,online:false},
+  {...common,id:"DEMO-DELTA",location:{lat:-24.7310,lng:-53.7435},categories:all,positionUpdatedAt:old}
+ ];
+ try{
+  const response=await fetch("/api/v5/nearest-pilot-preview",{
+   method:"POST",headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({simulation:true,pickup:{lat:-24.7300,lng:-53.7440},category,candidates})
+  });
+  if(!response.ok)throw Error("Consulta indisponível");
+  const d=await response.json();
+  out.textContent=d.selected
+   ?"Piloto selecionado: "+d.selected.id+" · "+d.selected.distanceMeters+" m em linha reta. Elegíveis: "+d.eligibleCount+" de "+d.candidatesReceived+". Simulação sem despacho."
+   :"Nenhum piloto elegível nesta simulação. Nenhuma mensagem foi enviada.";
+ }catch(_){out.textContent="Não foi possível concluir a simulação. Tente novamente mais tarde.";}
+});
+</script>
+</body></html>
