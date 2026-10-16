@@ -9,6 +9,9 @@ if(accessCode.length<12) { console.error('Configure FAMILY_CODE de pelo menos 12
 const MAX_USERS = Math.max(3, Math.min(100, Number(process.env.MAX_PARTICIPANTS || 50)));
 const members = new Map(); // websocket => {name, channel}
 const names = new Map(); // canonical name => websocket
+const pins = new Map(); // 4-digit invitation PIN => channel id (temporary pilot only)
+const pinFailures = new Map(); // name => attempt count and window
+const MAX_CHANNELS = 24;
 const badAttempts = new Map();
 const defaults = [
   {id:'ch01',name:'Família',users:['Erick','Bruna','Pietro']},
@@ -43,7 +46,46 @@ function publish(channelId,payload) {
 function roster(channelId) {
  const channel=channels.find(c=>c.id===channelId);
  if(!channel)return [];
- return channel.users.map(n=>({name:n,online:names.has(n.toLowerCase()),speaking:!!(speakers.get(channelId) && members.get(speakers.get(channelId))?.name===n)}));
+ return channel.users.map(n=>{
+  const peer=names.get(n.toLowerCase());
+  const online=!!(peer && members.get(peer)?.channel===channelId);
+  return {name:n,online,speaking:online && !!(speakers.get(channelId) && members.get(speakers.get(channelId))?.name===n)};
+ });
+}
+function ownChannels(name) {
+ return channels.filter(c=>c.users.includes(name)).map(c=>({id:c.id,name:c.name,users:c.users,private:!!c.private}));
+}
+function sendChannelList(ws) {
+ const m=members.get(ws);
+ if(m)send(ws,{type:'channels',channels:ownChannels(m.name),channel:m.channel});
+}
+function changeChannel(ws, next) {
+ const m=members.get(ws);
+ if(!m || !next || !next.users.includes(m.name))return false;
+ const prev=m.channel;
+ if(prev===next.id){send(ws,{type:'switched',channel:next.id});state(next.id);return true;}
+ release(ws);
+ m.channel=next.id;
+ send(ws,{type:'switched',channel:next.id});
+ state(prev);state(next.id);
+ return true;
+}
+function uniquePin() {
+ for(let i=0;i<200;i++){
+  const pin=String(crypto.randomInt(0,10000)).padStart(4,'0');
+  if(!pins.has(pin))return pin;
+ }
+ throw Error('PIN indisponível');
+}
+function joinAttemptAllowed(name) {
+ const v=pinFailures.get(name);
+ if(!v || Date.now()-v.start>15*60000){pinFailures.delete(name);return true;}
+ return v.count < 5;
+}
+function noteBadPin(name) {
+ const v=pinFailures.get(name);
+ if(!v || Date.now()-v.start>15*60000)pinFailures.set(name,{start:Date.now(),count:1});
+ else v.count++;
 }
 function state(channelId) {
  const active=speakers.get(channelId),current=active?members.get(active):null;
@@ -80,7 +122,7 @@ function bad(ip) {
 const server=http.createServer((req,res)=>{
  const healthy=req.url==='/health';
  res.writeHead(healthy?200:404,{'content-type':'application/json','cache-control':'no-store'});
- res.end(JSON.stringify(healthy?{ok:true,version:'2.0',users:members.size,channels:channels.length}:{error:'not_found'}));
+ res.end(JSON.stringify(healthy?{ok:true,version:'2.1-pin4',users:members.size,channels:channels.length}:{error:'not_found'}));
 });
 const wss=new WebSocket.Server({server,path:'/radio',maxPayload:8192,perMessageDeflate:false});
 wss.on('connection',(ws,req)=>{
@@ -115,7 +157,7 @@ wss.on('connection',(ws,req)=>{
    authenticated=true;clearTimeout(joinDeadline);
    members.set(ws,{name:canonical,channel:channel.id});
    names.set(canonical.toLowerCase(),ws);
-   send(ws,{type:'joined',name:canonical,channel:channel.id,channels:allowed.map(c=>({id:c.id,name:c.name,users:c.users}))});
+   send(ws,{type:'joined',name:canonical,channel:channel.id,channels:ownChannels(canonical)});
    state(channel.id);
    console.log('connect '+canonical+' '+channel.id+' users='+members.size);
    return;
@@ -125,10 +167,35 @@ wss.on('connection',(ws,req)=>{
   if(p.type==='switch'){
    const next=channels.find(c=>c.id===p.channel && c.users.includes(member.name));
    if(!next){send(ws,{type:'error',message:'Você não tem acesso a este canal'});return;}
-   const previous=member.channel;release(ws);
-   member.channel=next.id;
-   send(ws,{type:'switched',channel:next.id});
-   state(previous);state(next.id);
+   changeChannel(ws,next);
+  }else if(p.type==='channel_create'){
+   // Somente participantes já autenticados no piloto podem criar canais.
+   const title=typeof p.name==='string'?p.name.trim().replace(/\s+/g,' '):'';
+   if(title.length<3 || title.length>48) {send(ws,{type:'error',message:'Nome do canal: 3 a 48 caracteres'});return;}
+   if(channels.length>=MAX_CHANNELS){send(ws,{type:'error',message:'Limite de canais temporários atingido'});return;}
+   if(channels.filter(c=>c.private&&c.owner===member.name).length>=8) {
+    send(ws,{type:'error',message:'Limite de 8 canais criados por pessoa'});return;
+   }
+   const pin=uniquePin();
+   const id='p'+crypto.randomBytes(7).toString('hex');
+   const next={id,name:title,users:[member.name],private:true,owner:member.name};
+   channels.push(next);pins.set(pin,id);
+   send(ws,{type:'channel_created',channel:{id,name:title},pin});
+   sendChannelList(ws);
+   changeChannel(ws,next);
+   console.log('canal temporário criado id='+id+' owner='+member.name);
+  }else if(p.type==='channel_join'){
+   const pin=typeof p.pin==='string'?p.pin:'';
+   if(!/^[0-9]{4}$/.test(pin)){send(ws,{type:'error',message:'PIN deve conter 4 números'});return;}
+   if(!joinAttemptAllowed(member.name)){send(ws,{type:'error',message:'Muitas tentativas. Tente em 15 minutos'});return;}
+   const channelId=pins.get(pin);
+   const next=channelId?channels.find(c=>c.id===channelId):null;
+   if(!next){noteBadPin(member.name);send(ws,{type:'error',message:'PIN não encontrado'});return;}
+   if(!next.users.includes(member.name))next.users.push(member.name);
+   send(ws,{type:'channel_joined',channel:{id:next.id,name:next.name}});
+   sendChannelList(ws);
+   changeChannel(ws,next);
+   console.log('membro entrou em canal id='+next.id+' name='+member.name);
   }else if(p.type==='talk'){
    if(!speakers.has(member.channel)){
     speakers.set(member.channel,ws);
@@ -148,5 +215,6 @@ wss.on('connection',(ws,req)=>{
 setInterval(()=>{
  for(const ws of wss.clients){if(!ws.isAlive){ws.terminate();continue;}ws.isAlive=false;ws.ping();}
  for(const [ip,v] of badAttempts)if(Date.now()-v.start>15*60000)badAttempts.delete(ip);
+ for(const [name,v] of pinFailures)if(Date.now()-v.start>15*60000)pinFailures.delete(name);
 },30000);
-server.listen(port,'0.0.0.0',()=>console.log('Radio Familia V2 Matrix multicanal ouvindo na porta '+port));
+server.listen(port,'0.0.0.0',()=>console.log('Radio Familia V2.1 PIN4 piloto temporario ouvindo na porta '+port));
