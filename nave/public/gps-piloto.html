@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>NAVE V5 | Meu GPS de Piloto</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui,-apple-system,Arial,sans-serif;background:#071826;color:#effdff}
+*{box-sizing:border-box}body{margin:0;padding:20px}main{max-width:640px;margin:20px auto}
+h1{margin:10px 0 8px;font-size:clamp(1.6rem,4vw,2.2rem)}.brand{color:#80f3d4;font-weight:900;letter-spacing:.13em;font-size:12px}
+p{line-height:1.55;color:#c7dae6}.box{background:#122d40;border:1px solid #305269;border-radius:20px;padding:22px;margin:16px 0}
+label{display:block;font-weight:600;margin:14px 0 6px}input[type=email],input[type=password],input[type=text]{width:100%;border:1px solid #527386;background:#071c2a;color:white;padding:12px;border-radius:10px;font:inherit}
+button{cursor:pointer;font:inherit;font-weight:800;border:0;border-radius:12px;padding:14px 18px;margin-top:14px;background:#81eacb;color:#092a2c;width:100%}
+button:disabled{opacity:.55;cursor:not-allowed}.secondary{background:#345267;color:#fff}.danger{background:#c13a4b;color:#fff}
+.tag{display:inline-block;background:#21445b;border-radius:999px;color:#d5e7ef;padding:6px 12px;font-size:.8rem}
+.status{padding:12px 15px;border-radius:12px;background:#19394b;color:#d6ecf4;margin-top:16px;line-height:1.5}
+strong{color:white}.hint{font-size:.85rem;color:#b1cad5}.ok{color:#80f3d4}.warn{color:#ffcf86}
+.consent{display:flex;gap:10px;align-items:flex-start;margin:15px 0}.consent input{width:21px;height:21px;flex-shrink:0}
+#stop{background:#db495d;color:white}
+</style></head><body><main>
+<div class="brand">NAVE • PILOTO GPS V5</div>
+<h1>Você controla sua localização ⚡</h1>
+<p>Compartilhamento <strong>voluntário</strong>, limitado ao piloto de homologação. O GPS só é transmitido com este painel aberto, após você autorizar; nenhuma corrida é iniciada.</p>
+<div class="box"><span class="tag">Somente homologação · NAVE-0001</span>
+<form id="login"><label>E-mail do piloto</label><input id="email" type="email" autocomplete="username" required><label>Senha</label><input id="password" type="password" autocomplete="current-password" required><button type="submit">Entrar com segurança</button></form>
+<form id="mfa" hidden><p>Confirme seu código de 6 dígitos no autenticador.</p><label>Código MFA</label><input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required><button>Confirmar MFA</button></form>
+<div id="controls" hidden>
+ <p><strong>Conta autenticada.</strong> Para habilitar, você também precisa estar ONLINE no WhatsApp do piloto.</p>
+ <label class="consent"><input type="checkbox" id="consent"><span>Autorizo compartilhar minha localização precisa com a NAVE exclusivamente para <strong>simulação de proximidade</strong>. Posso parar a qualquer momento.</span></label>
+ <button type="button" id="start">Começar compartilhamento de teste</button>
+ <button type="button" id="stop" hidden>PARAR GPS E APAGAR POSIÇÃO</button>
+ <button type="button" class="secondary" id="logout">Sair da conta</button>
+</div>
+<div class="status" id="status" role="status" aria-live="polite">GPS desligado. Nenhuma coordenada enviada.</div>
+</div>
+<div class="box">
+ <h2>Como funciona</h2>
+ <p>Ao tocar em <strong>Começar</strong>, o celular solicitará permissão de localização. Apenas posições com precisão informada de até 100 metros serão aceitas pelo servidor. A autorização precisa ser explícita.</p>
+ <p>A posição tem validade de <strong>120 segundos</strong> para o radar; depois disso não participa de seleções. Ao tocar em <strong>PARAR</strong>, solicitamos sua exclusão do banco.</p>
+ <p class="warn"><strong>Atenção:</strong> esta página interrompe o GPS quando vai para segundo plano. Não funciona como rastreamento contínuo com o aplicativo fechado.</p>
+ <p class="hint">O banco ainda exige aprovação da migração GPS antes do primeiro compartilhamento. Nenhum token ou localização é enviado ao ChatGPT.</p>
+</div>
+</main>
+<script src="/pilot-test-config.js"></script>
+<script type="module">
+import {createClient} from "https://esm.sh/@supabase/supabase-js@2.49.0";
+const $=id=>document.getElementById(id);
+const cfg=window.NAVE_TEST_PUBLIC_CONFIG;
+const status=msg=>{$("status").textContent=msg};
+let client=null,factor=null,watch=null,ticker=null,latest=null,sharing=false,lastSent=0,inflight=false;
+const setControls=(loggedIn)=>{$("login").hidden=loggedIn;$("mfa").hidden=true;$("controls").hidden=!loggedIn};
+function clearWatch(){
+ if(watch!==null){navigator.geolocation.clearWatch(watch);watch=null}
+ if(ticker!==null){clearInterval(ticker);ticker=null}
+ sharing=false;latest=null;
+ $("start").hidden=false;$("stop").hidden=true;$("consent").checked=false;
+}
+async function stopSharing(message="GPS desligado."){
+ const wasSharing=sharing;clearWatch();
+ if(wasSharing&&client){
+   try{const r=await client.rpc("nave_v5_stop_pilot_gps");
+     status(r.error||r.data!==true?"GPS desligado neste celular. Exclusão remota não confirmada; a posição deixará de valer em até 120 segundos.":message+" Posição removida do banco.");
+   }catch(_){status("GPS desligado localmente. Exclusão remota indisponível; a posição expira para seleção em até 120 segundos.");}
+ }else status(message);
+}
+async function sendPosition(){
+ if(!sharing||inflight||document.hidden||!latest||Date.now()-latest.timestamp>90000)return;
+ if(!Number.isFinite(latest.coords.accuracy)||latest.coords.accuracy>100||latest.coords.accuracy<=0){
+   status("Precisão insuficiente no GPS. Aguarde o celular melhorar o sinal; nenhuma posição foi enviada.");return;
+ }
+ if(Date.now()-lastSent<15000)return;
+ inflight=true;
+ try{
+  const r=await client.rpc("nave_v5_set_pilot_gps",{
+   p_lat:latest.coords.latitude,p_lng:latest.coords.longitude,
+   p_accuracy_m:latest.coords.accuracy,p_consent:true
+  });
+  if(r.error){
+   clearWatch();status("Servidor GPS ainda indisponível. Nenhum compartilhamento está ativo; verifique a homologação.");return;
+  }
+  if(r.data!==true){
+   clearWatch();status("GPS recusado pelo servidor: confirme conta do piloto, MFA, ONLINE e precisão da localização.");return;
+  }
+  lastSent=Date.now();status("🟢 GPS de teste autorizado · última atualização "+new Date().toLocaleTimeString("pt-BR")+
+   " · precisão aproximada "+Math.round(latest.coords.accuracy)+" m. Nenhuma corrida criada.");
+ }catch(_){status("Falha de comunicação. A posição anterior expira em até 120 segundos. Você pode tocar em PARAR.");}
+ finally{inflight=false;}
+}
+async function loginVerify(){
+ const {data:l,error:e}=await client.auth.mfa.getAuthenticatorAssuranceLevel();if(e)throw e;
+ const {data:admin,error:a}=await client.rpc("nave_is_admin");if(a||admin!==true)throw Error("Não autorizado");
+ if(l.currentLevel!=="aal2"){
+  const {data:f,error:fe}=await client.auth.mfa.listFactors();if(fe)throw fe;
+  factor=f.totp?.find(x=>x.status==="verified")?.id;
+  if(!factor)throw Error("Configure o MFA primeiro na página NAVE V5 Teste do Piloto");
+  $("login").hidden=true;$("mfa").hidden=false;status("Confirme o MFA para entrar.");return;
+ }
+ setControls(true);status("Identidade e MFA validados. GPS desligado; ative somente quando desejar.");
+}
+if(!cfg?.supabaseUrl||!cfg?.publishableKey){status("Configuração pública indisponível.");$("login").querySelector("button").disabled=true}
+else client=createClient(cfg.supabaseUrl,cfg.publishableKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+$("login").onsubmit=async e=>{e.preventDefault();try{
+ const {error}=await client.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+ $("password").value="";if(error)throw error;await loginVerify();
+}catch(_){status("Login indisponível ou sem autorização. Confirme suas credenciais e MFA.");}};
+$("mfa").onsubmit=async e=>{e.preventDefault();try{
+ const code=$("code").value;if(!/^[0-9]{6}$/.test(code))throw Error();
+ const c=await client.auth.mfa.challenge({factorId:factor});if(c.error)throw c.error;
+ const v=await client.auth.mfa.verify({factorId:factor,challengeId:c.data.id,code});if(v.error)throw v.error;
+ $("code").value="";await loginVerify();
+}catch(_){status("Não foi possível confirmar o MFA.");}};
+$("start").onclick=()=>{
+ if(!$("consent").checked){status("Marque a autorização voluntária antes de ligar o GPS.");return;}
+ if(!navigator.geolocation){status("GPS não disponível neste navegador.");return;}
+ if(sharing)return;
+ sharing=true;$("start").hidden=true;$("stop").hidden=false;status("Solicitando permissão de localização ao navegador…");
+ watch=navigator.geolocation.watchPosition(
+  p=>{latest=p;void sendPosition()},
+  _=>status("Permissão negada ou GPS indisponível. Toque em PARAR para encerrar."),
+  {enableHighAccuracy:true,maximumAge:0,timeout:18000}
+ );
+ ticker=setInterval(()=>{void sendPosition()},30000);
+};
+$("stop").onclick=()=>void stopSharing("Compartilhamento interrompido.");
+$("logout").onclick=async()=>{await stopSharing("GPS desligado.");await client.auth.signOut();setControls(false);status("Sessão encerrada. GPS desligado.");};
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&sharing)void stopSharing("GPS interrompido ao sair da página.");});
+window.addEventListener("pagehide",()=>{if(sharing){clearWatch(); /* TTL server-side blocks stale location. */}});
+</script></body></html>
