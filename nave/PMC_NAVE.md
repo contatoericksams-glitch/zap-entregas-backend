@@ -1,5 +1,5 @@
 # NAVE — PLANO MESTRE DE CRIAÇÃO (PMC)
-**Linha de base v0.1 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
+**PMC v0.2 · 16/10/2026 · Projeto em criação · MC NÃO EXECUTADO**
 
 ## 1. Identidade, escopo e comandos
 
@@ -19,7 +19,7 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 | Marco GPS — localização autorizada | Validado em celular | NAVE-0001 com GPS e 2.004 m até embarque fictício |
 | Marco Rotas — ETA pelas ruas | Validado em celular | OSRM ~2,69 km e ~6 min; não considera trânsito |
 | Marco SmartDispatch — multi-pilotos | Simulador construído e testado | Pontos de motoristas fictícios; sem despacho real |
-| Marco Jornada Integrada | Pendente | Passageiro → despacho → motorista → conclusão |
+| Marco Jornada Integrada | Em construção | Laboratório completo fictício desenvolvido; integração real entre aplicativos, viagens e notificações ainda pendente |
 | Marco Homologação V1 | Pendente | Recursos finais e operação segura |
 | **MC — NASCIMENTO OFICIAL** | **BLOQUEADO / NÃO EXECUTADO** | Apenas após versão final e `EXECUTAR O MC` |
 
@@ -298,5 +298,6 @@ NAVE é uma empresa de tecnologia. Seu primeiro grande produto é a mobilidade u
 - Capturas de tela no projeto: radar NAVE-0001, 2.004 m até embarque remoto, rota OSRM de 2,69 km (~6 min); todos são **testes**, não corridas reais.
 - GitHub Actions: última bateria da branch V5 verificada com sucesso em 16/10/2026.
 - **Versão 0.1 / 16/10/2026:** início do controle PMC NAVE em 20 módulos; 47% por critérios. MC não executado.
+- **Versão 0.2 / 16/10/2026:** sprint de laboratório integrado passageiro → cotação fictícia → seleção de DEMO-motorista → oferta na própria tela → aceitar/recusar → chegada → embarque → finalizar. Cenários de motorista ocupado, recusa, cancelamento e ausência de rota. Arquivos `nave/core/journey-lab.js`, `nave/core/journey-lab.test.js`, `nave/public/jornada-integrada.html`, rota `/api/v5/journey-lab`. Protocolo sem banco, sem GPS, sem Meta e sem pagamentos. **47/100 (47%) mantidos**, porque os critérios remanescentes exigem integração real, aparelhos e homologação; não confundir um simulador funcional com conclusão da jornada final. MC não executado.
 
 **Regra de update:** a cada `ATUALIZE O PMC`, recontar checkboxes e revisar provas; reportar `n/N`, `(n/N)*100`, itens concluídos, parcialidades, pendências e riscos. Nunca declarar `EXECUTAR O MC` sem comando literal do proprietário e homologação final.
