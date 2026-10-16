@@ -93,7 +93,10 @@ async function loginVerify(){
   if(!factor)throw Error("Configure o MFA primeiro na página NAVE V5 Teste do Piloto");
   $("login").hidden=true;$("mfa").hidden=false;status("Confirme o MFA para entrar.");return;
  }
- setControls(true);status("Identidade e MFA validados. GPS desligado; ative somente quando desejar.");
+ setControls(true);$("start").disabled=true;
+ const ready=await client.rpc("nave_v5_nearest_pilot_demo",{p_pickup_lat:-24.73,p_pickup_lng:-53.74,p_category:"eco"});
+ if(ready.error){status("Identidade confirmada. Backend GPS aguardando homologação e aplicação da migração. Nenhum GPS está ativo.");return;}
+ $("start").disabled=false;status("Identidade e MFA validados. GPS desligado; ative somente quando desejar.");
 }
 if(!cfg?.supabaseUrl||!cfg?.publishableKey){status("Configuração pública indisponível.");$("login").querySelector("button").disabled=true}
 else client=createClient(cfg.supabaseUrl,cfg.publishableKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
