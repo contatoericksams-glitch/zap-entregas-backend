@@ -1,0 +1,25 @@
+name: Validacao basica (sem deploy)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-syntax:
+    name: Checagem de sintaxe e metadados
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Obter codigo
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Conferir sintaxe do servidor
+        run: node --check server.js
+      - name: Conferir package.json
+        run: node -e "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8'))"
