@@ -4,14 +4,23 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="theme-color" content="#162133" />
-<meta name="description" content="WIFLY V0.6: protótipo de homologação da Plataforma de Conexão Urbana de Toledo. Conteúdo demonstrativo." />
-<title>WIFLY | Central de Publicidade V0.6 — Demonstração</title>
+<meta name="description" content="WIFLY V0.7: protótipo de homologação da Plataforma de Conexão Urbana de Toledo. Conteúdo demonstrativo." />
+<title>WIFLY | V0.7.1 — Áudio móvel em preparação</title>
 <style>
 :root{--bg:#edf1f6;--surface:#fff;--ink:#162133;--muted:#607189;--line:#d4dce7;--soft:#f3f6fa;--accent:#1b5aa4;--dark:#162133;--warn:#fff3d5;--focus:#2076d0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--bg)}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--focus);outline-offset:2px}.shell{max-width:1180px;margin:auto;padding:0 20px}.demo-top{padding:9px 14px;text-align:center;background:#413613;color:#ffe39c;font-size:11px;font-weight:800;letter-spacing:.035em}.ad-top{position:relative;display:grid;grid-template-columns:48px minmax(0,1fr) 48px;gap:12px;align-items:center;padding:17px 10px 24px;background:#162c49;color:#fff;min-height:125px;transition:background .2s}.banner-copy{max-width:1050px;margin:auto;width:100%;display:grid;gap:4px;text-align:center}.banner-copy strong{font-size:clamp(17px,2vw,26px)}.banner-copy>span:not(.eyebrow){font-size:13px;color:#d2e0ef}.banner-copy a{color:#aedaf9;font-weight:700;font-size:13px}.eyebrow{font-size:10px;letter-spacing:.12em;font-weight:800;color:#a1d6f2}.arrow{border:1px solid #50708f;border-radius:9px;background:transparent;color:white;font-size:26px;height:46px}.dots{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:9px}.dots button{border:1px solid #c7d4e3;background:transparent;width:10px;height:10px;border-radius:99px;padding:0}.dots button.active{background:#fff}.header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding-top:18px;padding-bottom:18px}.brand{border:0;background:transparent;text-align:left;font-size:29px;font-weight:900;letter-spacing:-1px;color:#162133;padding:0}.brand span{color:#1b5aa4}.brand small{font-size:10px;font-weight:500;color:var(--muted);letter-spacing:0;display:block}.header nav{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.header nav a{padding:9px 10px;border-radius:8px;color:var(--ink);font-weight:650;font-size:13px}.header nav a.active,.header nav a:hover{background:#dae6f4;text-decoration:none}.menu-toggle{display:none;border:1px solid var(--line);background:#fff;padding:8px 12px;border-radius:8px}main{padding-top:7px!important;padding-bottom:35px!important;min-height:70vh}.card{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:20px}.soft{background:var(--soft)}.hstack{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.between{justify-content:space-between}.eyelabel{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--muted)}h1{font-size:clamp(24px,3vw,36px);line-height:1.1;margin:9px 0}h2{font-size:20px;margin:0 0 12px}h3{font-size:16px;margin:0 0 5px}p{line-height:1.5}small,.small{font-size:12px}.muted{color:var(--muted)}.pill{border-radius:99px;padding:5px 10px;font-size:11px;background:#e7edf5;color:#3b4d67;font-weight:800}.pill.demo{background:#fff1d0;color:#775008}.hero{display:flex;justify-content:space-between;align-items:center;gap:25px;padding:28px 30px;margin-bottom:16px}.hero p{margin:4px 0 0;color:var(--muted)}.btn{border:1px solid #1b5aa4;border-radius:9px;padding:10px 14px;background:#1b5aa4;color:#fff;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px}.btn.secondary{background:#fff;color:#1b5aa4}.btn.ghost{border-color:var(--line);background:var(--soft);color:var(--ink)}.btn.danger{background:#fff;color:#a13434;border-color:#e3b5b5}.btn:disabled{opacity:.55;cursor:not-allowed}.content-row{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:15px;margin-bottom:16px}.player{background:#15243a;color:#f1f7ff;display:flex;flex-direction:column;gap:14px;min-height:310px}.player .muted{color:#b6c5d8}.player-title{font-size:25px;font-weight:750}.signal{border:1px dashed #69809b;border-radius:9px;min-height:88px;display:flex;align-items:center;justify-content:center;color:#c5d1e0;font-size:12px}.player audio{width:100%}.player input{width:100%}.player-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.player .btn{background:#f6faff;color:#17253a;border-color:#fff}.chat{min-height:310px;display:flex;flex-direction:column;gap:9px}.chat-window{border:1px solid var(--line);background:#fafbfd;border-radius:8px;flex:1;min-height:160px;max-height:210px;overflow:auto;padding:12px}.chat-line{border-bottom:1px solid #e8edf3;padding:6px 0;font-size:13px}.chat-line strong{color:#24598a}.chat-line:last-child{border-bottom:0}.chat form{display:flex;gap:6px}.chat input{width:100%;min-width:0}.inputs,.searchbar{width:100%;border:1px solid #bbc8d9;background:#fff;color:var(--ink);border-radius:8px;padding:10px}.chat .btn{padding:9px}.four{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.section{margin:20px 0}.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px;gap:12px}.section-head h2{margin:0}.tile{display:flex;flex-direction:column;gap:9px;min-height:134px}.tile .icon{font-size:25px}.tile h3{margin:0}.tile a{align-self:flex-start;font-size:12px;font-weight:700}.list{display:grid;gap:10px}.result{display:flex;flex-direction:column;gap:7px}.result p{margin:0}.result .meta{color:var(--muted);font-size:12px}.pagehead{padding:21px;margin-bottom:14px}.pagehead p{margin:4px 0}.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:13px}.tools input{flex:1;min-width:170px}.tools select{min-width:135px}.grid-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.click-card{cursor:pointer;text-align:left;border:1px solid var(--line);border-radius:12px;background:#fff;padding:17px;color:var(--ink);display:flex;flex-direction:column;gap:9px;min-height:155px}.click-card:hover{border-color:#4e91d4;box-shadow:0 2px 9px #202e4514}.click-card h3,.click-card p{margin:0}.sponsor{border:2px dashed #a8b8cb;background:#f8fafc;text-align:center;margin:17px 0;padding:22px}.footer{background:#1e2e42;color:#dbe7f3;padding:26px 0}.footer a{color:#b9d7f6}.footer-grid{display:grid;grid-template-columns:2fr 1.4fr 1.4fr;gap:14px}.footer p{margin:6px 0}.notice{position:fixed;right:20px;bottom:20px;padding:12px 16px;border-radius:9px;background:#173653;color:#fff;box-shadow:0 5px 25px #0003;max-width:320px;z-index:8}.field{display:grid;gap:5px;margin:8px 0;font-size:13px;font-weight:700}.field input,.field select,.field textarea{font-weight:400;border:1px solid #adbdcc;border-radius:7px;padding:10px;width:100%}.field textarea{min-height:90px}.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}td,th{padding:10px;border-bottom:1px solid #e1e7ef}th{background:#f4f7fa}dialog{border:1px solid var(--line);border-radius:13px;max-width:580px;width:calc(100% - 24px);color:var(--ink);padding:22px}dialog::backdrop{background:#0a1421aa}.dialog-close{float:right}.status-banner{font-size:12px;border:1px solid #ead49e;background:#fff8e9;padding:10px 14px;border-radius:8px;margin-bottom:15px}.empty{padding:24px;text-align:center;color:var(--muted)}.stat{font-size:27px;font-weight:800}.hidden{display:none!important}@media(max-width:850px){.header{flex-wrap:wrap}.menu-toggle{display:block}.header nav{display:none;width:100%;flex-direction:column;align-items:stretch}.header nav.open{display:flex}.content-row{grid-template-columns:1fr}.four{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{align-items:flex-start;flex-direction:column}.footer-grid{grid-template-columns:1fr 1fr}}@media(max-width:530px){.shell{padding:0 13px}.ad-top{grid-template-columns:30px minmax(0,1fr) 30px;gap:4px;min-height:154px;padding-left:4px;padding-right:4px}.arrow{height:35px;border:0}.demo-top{font-size:9px}.hero{padding:18px}.four,.grid-cards,.admin-grid,.two,.footer-grid{grid-template-columns:1fr}.card{padding:16px}.chat form{flex-wrap:wrap}.chat form .btn{width:100%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 /* WIFLY V0.6 — Central de Publicidade */
 .ad-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}.ad-stats>.card{display:grid;gap:7px}.ad-stats strong{font-size:26px}.ad-dates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sponsored{border-style:solid;border-color:#cedbef;background:#f8fbff}.creative-image{width:100%;max-width:680px;max-height:180px;object-fit:contain;border-radius:9px;margin:10px auto;display:block}.table-wrap td .hstack{flex-wrap:nowrap}.table-wrap td .btn{padding:6px 9px;white-space:nowrap;font-size:11px}@media(max-width:760px){.ad-stats{grid-template-columns:1fr 1fr}}@media(max-width:530px){.ad-dates{grid-template-columns:1fr}.ad-stats{grid-template-columns:1fr 1fr}.table-wrap td .hstack{gap:5px}}
 
 .top-creative{width:100%;max-width:740px;max-height:160px;object-fit:contain;border-radius:8px;margin:0 auto 8px}
+
+/* M04.1 — controles de mídia persistentes em todas as rotas do portal */
+.media-dock{position:fixed;bottom:0;left:0;right:0;background:#14253d;color:#fff;z-index:30;border-top:1px solid #58718f;box-shadow:0 -4px 22px #10203740}
+.media-dock[hidden]{display:none}
+.media-dock-content{display:flex;gap:16px;justify-content:space-between;align-items:center;padding-top:10px;padding-bottom:10px;min-height:68px}
+.media-dock-info{display:flex;gap:2px;flex-direction:column;min-width:0;font-size:12px}.media-dock-info strong{font-size:14px}.media-dock-info span{color:#b7cbe4}
+.media-dock-controls{display:flex;gap:7px}.media-dock-controls .btn{padding:8px 12px;font-size:12px}
+body:has(.media-dock:not([hidden])){padding-bottom:74px}
+@media(max-width:530px){.media-dock-content{gap:6px;padding-top:8px;padding-bottom:8px;min-height:66px}.media-dock-info strong{font-size:11px}.media-dock-info span{font-size:10px}.media-dock-controls{gap:4px}.media-dock-controls .btn{font-size:10px;padding:8px 7px}body:has(.media-dock:not([hidden])){padding-bottom:84px}}
 
 </style>
 </head>
@@ -30,6 +39,10 @@
   <a href="#/" data-nav="home">Início</a><a href="#/noticias" data-nav="noticias">Notícias</a><a href="#/empregos" data-nav="empregos">Empregos</a><a href="#/eventos" data-nav="eventos">Eventos</a><a href="#/comercio" data-nav="comercio">Comércio</a><a href="#/anuncie" data-nav="anuncie">Anuncie</a><a href="#/central-publicidade" data-nav="central-publicidade">Publicidade</a><a href="#/admin" data-nav="admin">Painel</a>
  </nav>
 </header>
+<div id="media-dock" class="media-dock" role="region" aria-label="Controles persistentes do áudio WIFLY" hidden>
+ <div class="shell media-dock-content"><div class="media-dock-info"><strong>🎧 WIFLY · Áudio</strong><span id="media-dock-status" aria-live="polite">Aguardando transmissão</span></div>
+ <div class="media-dock-controls"><button class="btn" id="dock-play" type="button" aria-label="Reproduzir ou pausar">▶ Ouvir</button><button class="btn ghost" id="dock-pause" type="button" disabled>❚❚ Pausar</button><button class="btn ghost" id="dock-stop" type="button">■ Parar</button></div></div>
+</div>
 <main class="shell" id="main"><div id="view" aria-live="polite"></div></main>
 <footer class="footer"><div class="shell footer-grid"><div><strong>WIFLY</strong><p>Plataforma de Conexão Urbana · Toledo (PR)</p><p class="small">Protótipo em desenvolvimento. Sem operações comerciais nem notícias reais.</p></div><div><strong>Explorar</strong><p><a href="#/noticias">Notícias</a> · <a href="#/empregos">Empregos</a> · <a href="#/eventos">Eventos</a> · <a href="#/comercio">Comércio</a></p></div><div><strong>Institucional</strong><p><a href="#/anuncie">Anuncie</a> · <a href="#/admin">Painel de teste</a></p></div></div></footer>
 <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
@@ -122,6 +135,125 @@ window.WIFLY_SEED={
 })();
 
 </script><script>
+/* Configuração pública de HOMOLOGAÇÃO da WIFLY; substitua SOMENTE com chave publishable. */
+window.WIFLY_CONFIG = Object.freeze({
+  supabaseUrl: '',
+  supabasePublishableKey: ''
+});
+
+</script><script>
+/* WIFLY V0.7 | Supabase Auth + políticas RLS. Sem banco configurado, preserva demo V0.6. */
+(function () {
+  'use strict';
+  const cfg = window.WIFLY_CONFIG || {};
+  const url = String(cfg.supabaseUrl || '').trim();
+  const key = String(cfg.supabasePublishableKey || '').trim();
+  // Jamais aceitar uma chave de serviço/secret no cliente público.
+  if (!url || !key) return;
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url) || !key.startsWith('sb_publishable_')) {
+    console.warn('WIFLY: configuração pública inválida. Modo demonstração permanece.');
+    return;
+  }
+  const original = window.WIFLY_ADS;
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const safe = original.safeHttps;
+  const byId = id => document.getElementById(id);
+  const validDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v));
+  const state = {client:null, ready:false, error:'', user:null, isAdmin:false, advertisers:[], campaigns:[], audit:[], published:[], busy:false, feedback:''};
+  function signal() {
+    document.dispatchEvent(new CustomEvent('wifly:advertising-changed'));
+    window.dispatchEvent(new Event('hashchange'));
+  }
+  function today() {return original.today()}
+  async function loadData() {
+    if (!state.client) return;
+    const {data:pub,error:pubErr} = await state.client.from('wifly_ad_campaigns').select('id,title,description,image_url,destination_url,position,starts_on,ends_on,status,is_demo').eq('status','approved').eq('is_demo',false).lte('starts_on',today()).gte('ends_on',today()).order('created_at',{ascending:false});
+    if(pubErr) state.error = 'Não foi possível carregar as campanhas públicas.';
+    else state.published = pub || [];
+    if(state.isAdmin) {
+      const [a,c,h] = await Promise.all([
+        state.client.from('wifly_ad_advertisers').select('id,display_name,contact_email').order('created_at',{ascending:false}),
+        state.client.from('wifly_ad_campaigns').select('*').order('created_at',{ascending:false}),
+        state.client.from('wifly_ad_audit').select('event_kind,at,actor_id,campaign_id').order('at',{ascending:false}).limit(30)
+      ]);
+      if(a.error || c.error || h.error) state.error = 'Falha na leitura administrativa; confira políticas RLS/migrações.';
+      else {state.advertisers=a.data||[];state.campaigns=c.data||[];state.audit=h.data||[];state.error='';}
+    } else {state.advertisers=[];state.campaigns=[];state.audit=[];}
+    signal();
+  }
+  async function authenticate() {
+    if (!state.client) return;
+    const {data,error} = await state.client.auth.getUser();
+    state.user = error ? null : data.user;
+    // O controle verdadeiro acontece no banco pelas políticas RLS, NÃO por este if.
+    state.isAdmin = state.user?.app_metadata?.wifly_ads_admin === true;
+    await loadData();
+  }
+  async function init() {
+    try {
+      // Versão fixada para evitar upgrades implícitos; atualizar após teste e revisão.
+      const mod = await import('https://esm.sh/@supabase/supabase-js@2.49.8');
+      state.client = mod.createClient(url.replace(/\/$/,''),key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+      state.ready=true;
+      state.client.auth.onAuthStateChange((_event,_session)=>{
+        // Não chame operações Supabase diretamente no callback do Auth; evite deadlock.
+        setTimeout(()=>authenticate().catch(()=>{state.error='Erro ao verificar sessão.';signal()}),0);
+      });
+      await authenticate();
+    } catch(e) {
+      state.error='Não foi possível carregar o conector seguro. Confira a rede.';
+      state.ready=false;
+      signal();
+    }
+  }
+  function pubItem(c) {return {id:c.id, campaignId:c.id,type:'PUBLICIDADE',title:c.title,description:c.description,url:safe(c.destination_url)||'#/anuncie',imageUrl:safe(c.image_url)}}
+  // O topo usa somente campanhas contratadas para posição "top".
+  function topBanners() {const x=state.published.filter(c=>c.position==='top').map(pubItem);return x.length ? x : [{type:'ESPAÇO DISPONÍVEL',title:'Sua marca na WIFLY',description:'Banner principal disponível para campanhas autorizadas.',url:'#/anuncie'}]}
+  function slot(position) {
+    const c=state.published.find(item=>item.position===position);
+    if(!c)return '<section class="card sponsor"><span class="pill">ESPAÇO DISPONÍVEL</span><h2>Anuncie na WIFLY</h2><p class="muted small">Espaço publicitário aguardando campanhas aprovadas.</p><a href="#/anuncie">Conheça nossos espaços →</a></section>';
+    const image=safe(c.image_url),link=safe(c.destination_url);
+    return `<section class="card sponsor sponsored" aria-label="Publicidade"><span class="pill">PUBLICIDADE</span>${image?`<img class="creative-image" src="${esc(image)}" alt="Arte da campanha ${esc(c.title)}" loading="lazy">`:''}<h2>${esc(c.title)}</h2><p class="muted small">${esc(c.description)}</p>${link?`<a class="btn secondary" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Conhecer campanha ↗</a>`:''}</section>`;
+  }
+  function feedback(){return state.feedback?`<p class="status-banner" role="status">${esc(state.feedback)}</p>`:''}
+  function login() {return `<section class="card pagehead"><span class="eyelabel">WIFLY V0.7 · SUPABASE AUTH</span><h1>Administração de Publicidade</h1><p class="muted">Acesso restrito. A autorização é conferida pelo banco de dados.</p>${state.error?`<p class="status-banner">${esc(state.error)}</p>`:''}${feedback()}${!state.ready?'<p>Conectando ao serviço de autenticação...</p>':`<form id="wifly-signin" class="admin-grid"><label class="field">E-mail autorizado<input id="wifly-email" type="email" autocomplete="username" required></label><label class="field">Senha<input id="wifly-password" type="password" autocomplete="current-password" required></label><button class="btn" type="submit">Entrar na Central</button></form>`}</section>`}
+  function forbidden() {return `<section class="card pagehead"><span class="eyelabel">ACESSO RESTRITO</span><h1>Conta sem permissão de administrador</h1><p>Você está autenticado, mas não tem autorização para gerenciar as campanhas da WIFLY.</p><button id="wifly-logout" class="btn ghost">Sair</button></section>`}
+  function panel() {
+    if(!state.ready || !state.user) return login();
+    if(!state.isAdmin) return forbidden();
+    return `<section class="card pagehead"><span class="eyelabel">WIFLY V0.7 · ADMIN SEGURO</span><div class="hstack between"><h1>Central de Publicidade</h1><button class="btn ghost" id="wifly-logout">Sair</button></div><p class="muted">Aprovação com acesso restrito, campanhas no banco e registros de auditoria.</p>${state.error?`<p class="status-banner">${esc(state.error)}</p>`:''}${feedback()}</section>
+    <div class="ad-stats"><div class="card"><span class="muted small">Anunciantes</span><strong>${state.advertisers.length}</strong></div><div class="card"><span class="muted small">Campanhas</span><strong>${state.campaigns.length}</strong></div><div class="card"><span class="muted small">Ativas públicas</span><strong>${state.published.length}</strong></div></div>
+    <div class="admin-grid"><section class="card"><h2>1. Anunciantes</h2><form id="wifly-advertiser-form"><label class="field">Nome público<input id="wifly-adv-name" maxlength="120" minlength="2" required></label><label class="field">E-mail de contato (opcional)<input id="wifly-adv-email" type="email" maxlength="200"></label><button class="btn" type="submit">Cadastrar anunciante</button></form><div class="table-wrap"><table><thead><tr><th>Empresa</th><th>Ações</th></tr></thead><tbody>${state.advertisers.map(a=>`<tr><td>${esc(a.display_name)}</td><td><button type="button" class="btn ghost" data-advertiser-delete="${esc(a.id)}">Excluir</button></td></tr>`).join('')}</tbody></table></div></section>
+    <section class="card"><h2>2. Campanha</h2><form id="wifly-campaign-form"><input id="wifly-camp-id" type="hidden"><label class="field">Anunciante<select id="wifly-camp-advertiser" required>${state.advertisers.map(a=>`<option value="${esc(a.id)}">${esc(a.display_name)}</option>`).join('')}</select></label><label class="field">Título<input id="wifly-camp-title" required minlength="3" maxlength="120"></label><label class="field">Descrição<textarea id="wifly-camp-description" maxlength="400"></textarea></label><label class="field">Local<select id="wifly-camp-position"><option value="top">Banner principal</option><option value="secondary">Espaço secundário</option></select></label><label class="field">Arte HTTPS (opcional)<input id="wifly-camp-image" type="url" placeholder="https://..."></label><label class="field">Destino HTTPS (opcional)<input id="wifly-camp-link" type="url" placeholder="https://..."></label><div class="ad-dates"><label class="field">Início<input id="wifly-camp-start" type="date" required></label><label class="field">Fim<input id="wifly-camp-end" type="date" required></label></div><label class="field"><input id="wifly-camp-real" type="checkbox"> Campanha comercial real (somente após autorização contratual)</label><p class="muted small">O registro será salvo como rascunho. Para aparecer aos visitantes, deverá ser marcado como real e aprovado separadamente.</p><button class="btn" type="submit">Salvar rascunho</button><button class="btn ghost" type="reset" id="wifly-camp-reset">Limpar</button></form></section></div>
+    <section class="card section"><h2>3. Gestão e aprovação</h2><div class="table-wrap"><table><thead><tr><th>Campanha</th><th>Período</th><th>Tipo</th><th>Status</th><th>Ações</th></tr></thead><tbody>${state.campaigns.map(c=>`<tr><td><strong>${esc(c.title)}</strong><p class="small muted">${esc(state.advertisers.find(a=>a.id===c.advertiser_id)?.display_name||'')}</p></td><td>${esc(c.starts_on)} — ${esc(c.ends_on)}</td><td>${c.is_demo?'Demonstração':'Comercial'}</td><td><span class="pill">${esc(c.status)}</span></td><td><div class="hstack"><button class="btn ghost" data-camp-edit="${esc(c.id)}">Editar</button>${c.status!=='approved'?`<button class="btn secondary" data-camp-approve="${esc(c.id)}">Aprovar</button>`:`<button class="btn ghost" data-camp-pause="${esc(c.id)}">Pausar</button>`}<button class="btn danger" data-camp-delete="${esc(c.id)}">Excluir</button></div></td></tr>`).join('')}</tbody></table></div></section>
+    <section class="card section"><h2>4. Últimas alterações administrativas</h2><div class="table-wrap"><table><thead><tr><th>Ação</th><th>Data</th><th>Campanha</th></tr></thead><tbody>${state.audit.map(x=>`<tr><td>${esc(x.event_kind)}</td><td>${esc(new Date(x.at).toLocaleString('pt-BR'))}</td><td>${esc(x.campaign_id?.slice(0,8)||'')}</td></tr>`).join('')}</tbody></table></div></section>`;
+  }
+  async function action(fn,success) {
+    if(state.busy || !state.isAdmin) return;
+    state.busy=true;
+    try {const result=await fn();if(result?.error)throw result.error;state.feedback=success;state.error='';await loadData();}
+    catch(e){state.feedback='';state.error=e.message||'Falha ao salvar no banco.';signal()}
+    finally {state.busy=false}
+  }
+  function bind() {
+    const logout=byId('wifly-logout');if(logout)logout.onclick=async()=>{await state.client?.auth.signOut();state.user=null;state.isAdmin=false;state.feedback='';await loadData();};
+    const sign=byId('wifly-signin');if(sign)sign.onsubmit=async e=>{e.preventDefault();if(!state.client)return;const email=byId('wifly-email').value.trim(),password=byId('wifly-password').value;byId('wifly-password').value='';const {error}=await state.client.auth.signInWithPassword({email,password});state.feedback=error?'Falha ao entrar. Verifique as credenciais.':'';if(error)signal();else await authenticate();};
+    if(!state.isAdmin)return;
+    const adv=byId('wifly-advertiser-form');if(adv)adv.onsubmit=e=>{e.preventDefault();const name=byId('wifly-adv-name').value.trim(),contact=byId('wifly-adv-email').value.trim();if(name.length<2)return;action(()=>state.client.from('wifly_ad_advertisers').insert({display_name:name,contact_email:contact||null}),'Anunciante salvo no banco.')};
+    const form=byId('wifly-campaign-form');if(form)form.onsubmit=e=>{e.preventDefault();const start=byId('wifly-camp-start').value,end=byId('wifly-camp-end').value;const im=byId('wifly-camp-image').value.trim(),link=byId('wifly-camp-link').value.trim();if(!validDate(start)||!validDate(end)||start>end){alert('Período inválido.');return}if((im&&!safe(im))||(link&&!safe(link))){alert('URLs precisam ser HTTPS.');return}const real=byId('wifly-camp-real').checked;if(real&&!confirm('Confirma que a campanha é de um anunciante real autorizado? Ela será salva como rascunho, sem publicação.'))return;
+      const id=byId('wifly-camp-id').value;const record={advertiser_id:byId('wifly-camp-advertiser').value,title:byId('wifly-camp-title').value.trim(),description:byId('wifly-camp-description').value.trim(),position:byId('wifly-camp-position').value,image_url:im||null,destination_url:link||null,starts_on:start,ends_on:end,is_demo:!real,status:'draft'};
+      action(()=>id?state.client.from('wifly_ad_campaigns').update(record).eq('id',id):state.client.from('wifly_ad_campaigns').insert(record),'Rascunho salvo. Necessita aprovação.');};
+    document.querySelectorAll('[data-camp-edit]').forEach(btn=>btn.onclick=()=>{const c=state.campaigns.find(x=>x.id===btn.dataset.campEdit);if(!c)return;const map={'wifly-camp-id':c.id,'wifly-camp-advertiser':c.advertiser_id,'wifly-camp-title':c.title,'wifly-camp-description':c.description,'wifly-camp-position':c.position,'wifly-camp-image':c.image_url||'','wifly-camp-link':c.destination_url||'','wifly-camp-start':c.starts_on,'wifly-camp-end':c.ends_on};Object.entries(map).forEach(([id,value])=>byId(id).value=value);byId('wifly-camp-real').checked=!c.is_demo;form.scrollIntoView({behavior:'smooth'});});
+    document.querySelectorAll('[data-camp-approve]').forEach(btn=>btn.onclick=()=>{const c=state.campaigns.find(x=>x.id===btn.dataset.campApprove);if(!c)return;if(!confirm(`Aprovar "${c.title}"? ${c.is_demo?'Campanha fictícia não será pública.':'A campanha COMERCIAL poderá ser exibida dentro da vigência.'}`))return;action(()=>state.client.from('wifly_ad_campaigns').update({status:'approved',approved_at:new Date().toISOString()}).eq('id',c.id),'Campanha aprovada.');});
+    document.querySelectorAll('[data-advertiser-delete]').forEach(btn=>btn.onclick=()=>{const id=btn.dataset.advertiserDelete;if(state.campaigns.some(x=>x.advertiser_id===id)){alert('Exclua primeiro as campanhas deste anunciante.');return}if(!confirm('Excluir anunciante?'))return;action(()=>state.client.from('wifly_ad_advertisers').delete().eq('id',id),'Anunciante excluído.');});
+    document.querySelectorAll('[data-camp-delete]').forEach(btn=>btn.onclick=()=>{if(!confirm('Excluir campanha? Esta ação não poderá ser desfeita.'))return;action(()=>state.client.from('wifly_ad_campaigns').delete().eq('id',btn.dataset.campDelete),'Campanha excluída.');});
+    document.querySelectorAll('[data-camp-pause]').forEach(btn=>btn.onclick=()=>{if(!confirm('Pausar campanha?'))return;action(()=>state.client.from('wifly_ad_campaigns').update({status:'paused'}).eq('id',btn.dataset.campPause),'Campanha pausada.');});
+  }
+  Object.assign(window.WIFLY_ADS,{banners:topBanners,slot,panel,bind,impression:()=>{},click:()=>{},mode:'supabase',status:()=>({...state,client:undefined})});
+  init();
+})();
+
+</script><script>
 (()=>{'use strict';
 const seed=window.WIFLY_SEED, storeKey='wifly-v05-mock-content', settingsKey='wifly-v05-settings';
 const types=['noticias','empregos','eventos','comercio','banners'];
@@ -133,7 +265,53 @@ const initial=()=>clone(seed);
 let db=initial();try{const v=JSON.parse(localStorage.getItem(storeKey)||'null');if(v&&types.every(t=>Array.isArray(v[t]))) db=v;}catch{}
 let settings={streamUrl:''};try{settings={...settings,...JSON.parse(localStorage.getItem(settingsKey)||'{}')}}catch{}
 let bannerIndex=0, bannerTimer=null, chatMessages=[{name:'Equipe WIFLY (simulação)',text:'Bem-vindo ao chat de demonstração. Ainda não há pessoas conectadas.'},{name:'Visitante fictício',text:'Exemplo de mensagem para testar o layout.'}];
-let activeFilter='',activeQuery='';let audio=document.createElement('audio');audio.preload='none';audio.crossOrigin='anonymous';
+let activeFilter='',activeQuery='';
+// Instância única: não remontar o áudio ao trocar páginas internas da WIFLY.
+const audio=document.createElement('audio');audio.preload='none';audio.playsInline=true;
+let playerState='idle';
+function safeStatusText(){return ({idle:'Aguardando transmissão',connecting:'Conectando…',playing:'Reproduzindo',paused:'Pausado',stopped:'Parado',waiting:'Carregando sinal…',error:'Sinal indisponível',not_configured:'Configure a URL HTTPS no Painel'})[playerState]||'Aguardando transmissão'}
+function syncPlayerUi(){
+  const statusText=safeStatusText();
+  const s=$('#play-status'),d=$('#media-dock-status');
+  if(s)s.textContent=statusText;
+  if(d)d.textContent=statusText;
+  const dock=$('#media-dock');if(dock)dock.hidden=!settings.streamUrl;
+  const playing=playerState==='playing';
+  const p=$('#play-stream'),dp=$('#dock-play'),ap=$('#pause-stream'),da=$('#dock-pause');
+  if(p)p.textContent=playing?'❚❚ Pausar':'▶ Ouvir';
+  if(dp)dp.textContent=playing?'❚❚ Pausar':'▶ Ouvir';
+  if(ap)ap.disabled=!playing;
+  if(da)da.disabled=!playing;
+  if('mediaSession' in navigator){try{navigator.mediaSession.playbackState=playing?'playing':playerState==='paused'?'paused':'none'}catch{}}
+}
+function setupMediaSession(){
+  if(!('mediaSession' in navigator))return;
+  try{
+    if('MediaMetadata' in window){navigator.mediaSession.metadata=new MediaMetadata({
+      title:'WIFLY — Transmissão urbana',artist:'WIFLY · Toledo (PR)',album:'Plataforma de Conexão Urbana'
+    });}
+    for(const [action,fn] of [['play',playStream],['pause',pauseStream],['stop',stopStream]]){
+      try{navigator.mediaSession.setActionHandler(action,fn)}catch{/* Controle não suportado */}
+    }
+  }catch{/* Sistema ou navegador sem suporte completo */}
+}
+function pauseStream(){audio.pause();playerState='paused';syncPlayerUi()}
+function stopStream(){audio.pause();audio.removeAttribute('src');audio.load();playerState='stopped';syncPlayerUi()}
+function toggleStream(){if(!audio.paused){pauseStream()}else{playStream()}}
+for(const event of ['playing','pause','waiting','stalled','error','ended'])audio.addEventListener(event,()=>{
+  if(event==='playing')playerState='playing';
+  if(event==='pause'&&playerState!=='stopped')playerState='paused';
+  if((event==='waiting'||event==='stalled')&&playerState!=='stopped')playerState='waiting';
+  if(event==='error')playerState='error';
+  if(event==='ended')playerState='stopped';
+  syncPlayerUi();
+});
+setupMediaSession();
+const dockPlay=$('#dock-play'),dockPause=$('#dock-pause'),dockStop=$('#dock-stop');
+if(dockPlay)dockPlay.addEventListener('click',toggleStream);
+if(dockPause)dockPause.addEventListener('click',pauseStream);
+if(dockStop)dockStop.addEventListener('click',stopStream);
+
 function persist(){try{localStorage.setItem(storeKey,JSON.stringify(db));return true}catch{toast('Não foi possível salvar neste navegador.');return false}}
 function persistSettings(){try{localStorage.setItem(settingsKey,JSON.stringify(settings))}catch{toast('Não foi possível salvar a URL.')}}
 function toast(s){const t=$('#notice');t.textContent=s;t.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.hidden=true,4300)}
@@ -146,11 +324,25 @@ $('#brand').onclick=()=>go('#/');$('#menu-toggle').onclick=()=>{const n=$('#nav'
 const stamp='<span class="pill demo">FICTÍCIO · TESTE</span>';
 function buttonLink(h,txt){return `<a class="btn secondary" href="${h}">${txt}</a>`}
 function tile(icon,title,description,href){return `<article class="card tile"><span class="icon" aria-hidden="true">${icon}</span><h3>${title}</h3><p class="small muted">${description}</p><a href="${href}">Acessar seção →</a></article>`}
-function player(){return `<section class="card player" id="player-section" aria-label="Player de testes"><div class="hstack between"><span class="eyebrow">PLAYER WIFLY · ESTRUTURA</span><span class="pill demo">SEM LIVE</span></div><div class="signal" aria-hidden="true">◦ ◦ ◦ Áudio somente após configurar URL válida ◦ ◦ ◦</div><div><div class="player-title">Transmissão ainda não conectada</div><p class="muted small">Sem música ou sinal de rádio nesta versão. Teste de integração futura.</p></div><div class="player-controls"><button class="btn" id="play-stream">▶ Ouvir</button><button class="btn ghost" id="stop-stream">■ Parar</button><span id="play-status" class="small muted">Desconectado</span></div></section>`}
+function player(){return `<section class="card player" id="player-section" aria-label="Player de testes"><div class="hstack between"><span class="eyebrow">PLAYER WIFLY · ESTRUTURA</span><span class="pill demo">SEM LIVE</span></div><div class="signal" aria-hidden="true">◦ ◦ ◦ Áudio somente após configurar URL válida ◦ ◦ ◦</div><div><div class="player-title">Transmissão ainda não conectada</div><p class="muted small">Sem música ou sinal de rádio nesta versão. Teste de integração futura.</p></div><div class="player-controls"><button class="btn" id="play-stream">▶ Ouvir</button><button class="btn ghost" id="pause-stream" disabled>❚❚ Pausar</button><button class="btn ghost" id="stop-stream">■ Parar</button><span id="play-status" class="small muted" aria-live="polite">Aguardando transmissão</span></div><p class="muted small" style="margin:0">Após conectar um streaming HTTPS, os controles do celular poderão funcionar com a tela bloqueada. Depende do navegador e do sistema. Não existe transmissão real nesta versão.</p></section>`}
 function chat(){return `<section class="card chat" id="chat-section"><div class="hstack between"><h2 style="margin:0">Chat da cidade</h2>${stamp}</div><p class="muted small" style="margin:0">Simulação local: mensagens não são enviadas para outras pessoas.</p><div class="chat-window" id="chat-lines"></div><form id="chat-form"><input class="inputs" id="chat-msg" maxlength="140" aria-label="Mensagem de teste" placeholder="Digite uma mensagem de teste" required><button class="btn" type="submit">Enviar</button></form></section>`}
 function renderChat(){const win=$('#chat-lines');if(!win)return;win.innerHTML=chatMessages.map(m=>`<div class="chat-line"><strong>${esc(m.name)}</strong> · ${esc(m.text)}</div>`).join('');win.scrollTop=win.scrollHeight}
-function hookHome(){renderChat();$('#chat-form').onsubmit=e=>{e.preventDefault();const v=$('#chat-msg').value.trim();if(!v)return;chatMessages.push({name:'Você (neste navegador)',text:v});chatMessages=chatMessages.slice(-35);$('#chat-msg').value='';renderChat();toast('Mensagem de teste salva apenas nesta aba.')};$('#play-stream').onclick=()=>playStream();$('#stop-stream').onclick=()=>{audio.pause();audio.currentTime=0;$('#play-status').textContent='Parado'};audio.addEventListener('error',()=>{const s=$('#play-status');if(s)s.textContent='Erro ao carregar sinal / URL indisponível'});}
-function playStream(){if(!settings.streamUrl){$('#play-status').textContent='Configure a URL no Painel de teste';return}try{audio.src=settings.streamUrl;$('#play-status').textContent='Conectando...';audio.play().then(()=>{const x=$('#play-status');if(x)x.textContent='Reproduzindo (verifique o áudio)'}).catch(()=>{const x=$('#play-status');if(x)x.textContent='Não foi possível iniciar; verifique URL e navegador'})}catch{toast('URL inválida ou indisponível')}}
+function hookHome(){renderChat();$('#chat-form').onsubmit=e=>{e.preventDefault();const v=$('#chat-msg').value.trim();if(!v)return;chatMessages.push({name:'Você (neste navegador)',text:v});chatMessages=chatMessages.slice(-35);$('#chat-msg').value='';renderChat();toast('Mensagem de teste salva apenas nesta aba.')};$('#play-stream').onclick=toggleStream;$('#pause-stream').onclick=pauseStream;$('#stop-stream').onclick=stopStream;syncPlayerUi();}
+async function playStream(){
+  if(!settings.streamUrl){playerState='not_configured';syncPlayerUi();return}
+  if(!/^https:\/\//i.test(settings.streamUrl)&&!/^data:audio\//i.test(settings.streamUrl)){
+    playerState='error';syncPlayerUi();return
+  }
+  try{
+    if(audio.getAttribute('src')!==settings.streamUrl){audio.src=settings.streamUrl}
+    playerState='connecting';syncPlayerUi();setupMediaSession();
+    await audio.play();
+  }catch{
+    playerState='error';syncPlayerUi();
+    toast('Não foi possível iniciar o áudio. Confira sinal, URL e permissões do navegador.');
+  }
+}
+
 function home(){return `<section class="card hero"><div><span class="eyelabel">WIFLY · PLATAFORMA DE CONEXÃO URBANA</span><h1>Sua cidade em um só lugar.</h1><p>Espaço estrutural para música, informações e comunidade em Toledo.</p></div>${buttonLink('#/noticias','Explorar Toledo →')}</section><div class="content-row">${player()}${chat()}</div><section class="section"><div class="section-head"><h2>Destaques da cidade</h2><span class="pill demo">Demonstração</span></div><div class="four">${tile('📰','Notícias','Toledo, Paraná, Brasil e Mundo','#/noticias')}${tile('💼','Empregos','Oportunidades e filtros de vagas','#/empregos')}${tile('📅','Eventos','Agenda de Toledo e região','#/eventos')}${tile('🏪','Comércio','Vitrine de empresas e serviços','#/comercio')}</div></section><section class="section"><div class="section-head"><h2>Últimas vagas</h2><a href="#/empregos">Ver todas →</a></div><div class="grid-cards">${db.empregos.slice(0,3).map(x=>card(x,'empregos')).join('')}</div></section><section class="section"><div class="section-head"><h2>Notícias em destaque</h2><a href="#/noticias">Ver todas →</a></div><div class="grid-cards">${db.noticias.slice(0,3).map(x=>card(x,'noticias')).join('')}</div></section>${sponsor()}<section class="section"><div class="section-head"><h2>Próximos eventos</h2><a href="#/eventos">Ver agenda →</a></div><div class="grid-cards">${db.eventos.slice(0,3).map(x=>card(x,'eventos')).join('')}</div></section><section class="section"><div class="section-head"><h2>Comércio de Toledo</h2><a href="#/comercio">Ver guia →</a></div><div class="grid-cards">${db.comercio.slice(0,3).map(x=>card(x,'comercio')).join('')}</div></section>`}
 function sponsor(){const ad=window.WIFLY_ADS.slot("secondary");if(ad)return ad;return `<section class="card sponsor" aria-label="Publicidade de teste"><div class="eyelabel">ESPAÇO PUBLICITÁRIO SECUNDÁRIO — DEMONSTRAÇÃO</div><h2>Seu anúncio aqui</h2><p class="muted small">Área reservada para futuros patrocinadores. Não existe anunciante contratado.</p><a href="#/anuncie">Conhecer formatos →</a></section>`}
 const label={noticias:'Notícias',empregos:'Empregos',eventos:'Eventos',comercio:'Comércio'};
@@ -163,9 +355,9 @@ function listHook(type){const s=$('#search'),c=$('#category');if(!s)return; s.on
 function refreshList(type,keepSearch){const focus=keepSearch?'category':'search';let pos=0;try{pos=$('#search').selectionStart}catch{}const v=$('#view');v.innerHTML=listPage(type);hookDetails();listHook(type);if($('#'+focus)){$('#'+focus).focus();if(!keepSearch)try{$('#search').setSelectionRange(pos,pos)}catch{}}}
 function advertise(){return `<section class="card pagehead"><span class="eyelabel">WIFLY · ÁREA COMERCIAL</span><h1>Anuncie na WIFLY</h1><p class="muted">Formatos ilustrativos — sem preços definidos ou contratos ativos.</p>${stamp}</section><div class="grid-cards">${[['Banner superior','Carrossel de campanhas, eventos e parceiros.'],['Spot no streaming','Área futura para publicidade em áudio.'],['Vitrine comercial','Card patrocinado no guia de comércio.']].map(v=>`<article class="card"><h2>${v[0]}</h2><p>${v[1]}</p><span class="pill demo">DEMONSTRAÇÃO</span></article>`).join('')}</div>${sponsor()}`}
 function admin(){return `<section class="card pagehead"><span class="eyelabel">PAINEL DE HOMOLOGAÇÃO · NÃO É UM ADMINISTRADOR REAL</span><h1>Central de demonstração</h1><p class="muted">Edite conteúdo fictício apenas neste navegador. Ainda não há login, API, banco compartilhado ou publicação para outros usuários.</p>${stamp}</section><div class="admin-grid"><section class="card"><h2>Novo conteúdo de teste</h2><form id="admin-form"><label class="field">Seção<select id="admin-type">${types.map(t=>`<option value="${t}">${esc(label[t]||'Banners')}</option>`).join('')}</select></label><label class="field">Título<input id="admin-title" maxlength="100" required></label><label class="field">Descrição<textarea id="admin-description" maxlength="350" required></textarea></label><label class="field">Categoria / empresa de teste<input id="admin-category" maxlength="70" placeholder="Ex.: Toledo, Logística ou Comércio"></label><button class="btn" type="submit">Adicionar demonstração</button></form></section><section class="card"><h2>Configurar URL do player</h2><p class="muted small">Somente para testes autorizados. Exige URL HTTPS direta de áudio compatível com o navegador. Não salva no servidor.</p><form id="stream-form"><label class="field">URL do stream (HTTPS)<input type="url" id="stream-url" placeholder="https://servidor.exemplo/stream" value="${esc(settings.streamUrl)}"></label><div class="hstack"><button class="btn" type="submit">Salvar URL de teste</button><button class="btn ghost" id="reset-stream" type="button">Limpar</button></div></form><p class="small muted">A integração com FreeSHOUTcast não foi homologada.</p><hr><h2>Dados locais</h2><p class="muted small">Edite ou reinicie os dados fictícios. Estas alterações não são sincronizadas.</p><button class="btn danger" id="reset-data" type="button">Restaurar dados demonstrativos</button></section></div><section class="section card"><div class="section-head"><h2>Registros de demonstração</h2><span class="pill">Dados locais</span></div><div class="table-wrap"><table><thead><tr><th>Área</th><th>Título</th><th>Ação</th></tr></thead><tbody>${types.flatMap(t=>db[t].map(x=>`<tr><td>${esc(label[t]||'Banners')}</td><td>${esc(x.title)}</td><td><button class="btn ghost delete-item" data-kind="${t}" data-id="${esc(x.id)}" type="button">Excluir</button></td></tr>`)).join('')}</tbody></table></div></section>`}
-function adminHook(){$('#admin-form').onsubmit=e=>{e.preventDefault();let t=$('#admin-type').value,title=$('#admin-title').value.trim(),desc=$('#admin-description').value.trim(),category=$('#admin-category').value.trim()||'Demonstração';if(!title||!desc)return;const id='demo-'+Date.now();let record={id,title,description:desc,category,company:category,location:'Local fictício de Toledo',date:'2026-10-20',source:'Conteúdo demonstrativo WIFLY',type:'PUBLICIDADE DEMONSTRATIVA',url:'#/anuncie'};db[t].unshift(record);persist();bannerIndex=0;banner();render();toast('Conteúdo fictício cadastrado apenas neste navegador.')};$('#stream-form').onsubmit=e=>{e.preventDefault();const v=$('#stream-url').value.trim();if(v&&!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/|$)/i.test(v)){toast('Use uma URL HTTPS válida.');return}settings.streamUrl=v;persistSettings();toast('URL salva neste navegador. Teste o player na Home.')};$('#reset-stream').onclick=()=>{settings.streamUrl='';persistSettings();render();toast('URL de teste removida.')};$('#reset-data').onclick=()=>{if(!confirm('Restaurar todo conteúdo demonstrativo local?'))return;db=initial();persist();bannerIndex=0;banner();render();toast('Dados de teste restaurados.')};$$('.delete-item').forEach(b=>b.onclick=()=>{db[b.dataset.kind]=db[b.dataset.kind].filter(x=>x.id!==b.dataset.id);if(b.dataset.kind==='banners'&&!db.banners.length){db.banners=clone(seed.banners)}persist();bannerIndex=0;banner();render();toast('Registro de demonstração excluído.')})}
+function adminHook(){$('#admin-form').onsubmit=e=>{e.preventDefault();let t=$('#admin-type').value,title=$('#admin-title').value.trim(),desc=$('#admin-description').value.trim(),category=$('#admin-category').value.trim()||'Demonstração';if(!title||!desc)return;const id='demo-'+Date.now();let record={id,title,description:desc,category,company:category,location:'Local fictício de Toledo',date:'2026-10-20',source:'Conteúdo demonstrativo WIFLY',type:'PUBLICIDADE DEMONSTRATIVA',url:'#/anuncie'};db[t].unshift(record);persist();bannerIndex=0;banner();render();toast('Conteúdo fictício cadastrado apenas neste navegador.')};$('#stream-form').onsubmit=e=>{e.preventDefault();const v=$('#stream-url').value.trim();if(v&&!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/|$)/i.test(v)){toast('Use uma URL HTTPS válida.');return}if(v!==settings.streamUrl)stopStream();settings.streamUrl=v;persistSettings();syncPlayerUi();toast('URL salva neste navegador. Teste o player na Home.')};$('#reset-stream').onclick=()=>{stopStream();settings.streamUrl='';persistSettings();render();syncPlayerUi();toast('URL de teste removida.')};$('#reset-data').onclick=()=>{if(!confirm('Restaurar todo conteúdo demonstrativo local?'))return;db=initial();persist();bannerIndex=0;banner();render();toast('Dados de teste restaurados.')};$$('.delete-item').forEach(b=>b.onclick=()=>{db[b.dataset.kind]=db[b.dataset.kind].filter(x=>x.id!==b.dataset.id);if(b.dataset.kind==='banners'&&!db.banners.length){db.banners=clone(seed.banners)}persist();bannerIndex=0;banner();render();toast('Registro de demonstração excluído.')})}
 function render(){const path=(location.hash||'#/').split('?')[0].replace(/^#\//,'').replace(/\/$/,'');const type=['noticias','empregos','eventos','comercio'].includes(path)?path:'home';const valid=['','noticias','empregos','eventos','comercio','anuncie','admin','central-publicidade'].includes(path);$$('[data-nav]').forEach(a=>a.classList.toggle('active',a.dataset.nav===(path||'home')));$('#nav').classList.remove('open');$('#menu-toggle').setAttribute('aria-expanded','false');let v=$('#view');if(!valid)v.innerHTML='<section class="card"><h1>Página não encontrada</h1><a href="#/">Voltar à Home</a></section>';else if(type!=='home')v.innerHTML=listPage(type);else if(path==='anuncie')v.innerHTML=advertise();else if(path==='admin')v.innerHTML=admin();else if(path==='central-publicidade')v.innerHTML=window.WIFLY_ADS.panel();else v.innerHTML=home();if(valid){hookDetails();if(path==='')hookHome();if(path==='admin')adminHook();if(path==='central-publicidade')window.WIFLY_ADS.bind(()=>{render();bannerIndex=0;banner()});if(type!=='home')listHook(type)}}
-window.addEventListener('hashchange',()=>{activeFilter='';activeQuery='';render();window.scrollTo({top:0,behavior:'instant'})});banner();startRotation();render();
+window.addEventListener('hashchange',()=>{activeFilter='';activeQuery='';render();window.scrollTo({top:0,behavior:'instant'})});banner();startRotation();render();syncPlayerUi();
 })();
 
 </script>
