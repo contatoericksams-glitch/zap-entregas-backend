@@ -34,6 +34,14 @@ Atualizado: 2026-10-20 (horário brasileiro). Não confundir "implementado" com 
 - O fluxo de login/admin real não foi testado (nenhum usuário Auth criado ainda).
 - Player em segundo plano continua pendente de validação em Android/iPhone com streaming real.
 
+## Avanço M13 — Trava comercial (V0.7.2)
+- Tabela `public.wifly_ad_publication_control` com RLS e `commercial_ads.enabled=false`.
+- A política pública exige simultaneamente campanha real aprovada, data vigente e liberação geral. Administradores do site não podem alterar essa trava.
+- Indicador de status incluído no painel da WIFLY.
+- Security Advisor sem alertas após mudança; Chromium/testes locais de interface passaram.
+- Contas Auth WIFLY: zero no último exame. Não homologar login real até cadastro.
+- Render confirmou o código V0.7.2 como `live`.
+
 ## Próxima ação do proprietário
 1. Abrir Supabase > projeto WIFLY > Authentication > Users.
 2. Criar o primeiro usuário administrativo com e-mail próprio e senha forte; evitar publicar credenciais no chat.
