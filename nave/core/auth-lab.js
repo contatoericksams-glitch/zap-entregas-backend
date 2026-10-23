@@ -16,7 +16,7 @@ function roleFor(user) {
   return null;
 }
 
-function createAuthLabApp({ url, publishableKey, makeClient = createClient } = {}) {
+function createAuthLabApp({ url, publishableKey, makeClient = createClient, clock = Date.now } = {}) {
   if (url !== "http://127.0.0.1:54321" || !publishableKey) throw new Error("Only ephemeral loopback Supabase is allowed");
   const app = express();
   app.disable("x-powered-by");
@@ -78,7 +78,7 @@ function createAuthLabApp({ url, publishableKey, makeClient = createClient } = {
     } catch (_) { res.sendStatus(503); }
   });
   app.get("/api/auth-lab/session", requireUser, (req, res) => res.json({ role: req.labActor.role, testOnly: true }));
-  app.use("/api/auth-lab/room", createLocalDemoRouter({ authenticated: true, requireUser }));
+  app.use("/api/auth-lab/room", createLocalDemoRouter({ authenticated: true, requireUser, clock }));
   app.use("/api/v5", createPreviewRouter());
   app.use(express.static(path.join(__dirname, "../public"), { index: false }));
   return app;

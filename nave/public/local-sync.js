@@ -23,7 +23,7 @@ const NaveLocalSync = (() => {
   return { enabled, async connect(label, listener) {
     role = label; receive = listener;
     const note = document.createElement("p"); note.className = "notice";
-    note.textContent = authenticated ? "TESTE ISOLADO COM LOGIN · Sessões separadas e permissões conferidas pelo servidor. Viagens fictícias; estado temporário." : "DEMONSTRAÇÃO SINCRONIZADA LOCAL · Uma sala fictícia nesta máquina. Sem contas reais. O estado desaparece ao reiniciar o servidor.";
+    note.textContent = authenticated ? "TESTE ISOLADO COM LOGIN · Sessões separadas e permissões conferidas pelo servidor. Ofertas fictícias vencem em 2 minutos. Estado temporário." : "DEMONSTRAÇÃO SINCRONIZADA LOCAL · Uma sala fictícia nesta máquina. Sem contas reais. O estado desaparece ao reiniciar o servidor.";
     document.querySelector("header").after(note);
     if (label !== "observer" && !authenticated) { const link = document.createElement("a"); link.href = "/central-local.html?shared=1"; link.textContent = " Abrir Central local →"; note.append(link); }
     document.querySelectorAll('a[href="/passageiro.html"],a[href="/motorista.html"]').forEach(link => { link.href += authenticated ? "?auth=1" : "?shared=1"; });
@@ -40,7 +40,10 @@ const NaveLocalSync = (() => {
     if (!current || pending) throw new Error("Aguarde a conexão com a demonstração local.");
     pending = true;
     try {
-      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", ...headers() }, body: JSON.stringify({ role, action, roomId: current.roomId, version: current.version, ...extra }), signal: AbortSignal.timeout(5000) });
+      const body = JSON.stringify({ role, action, roomId: current.roomId, version: current.version, ...extra, ...(authenticated ? { requestKey: crypto.randomUUID() } : {}) });
+      const send = () => fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", ...headers() }, body, signal: AbortSignal.timeout(5000) });
+      let res;
+      try { res = await send(); } catch (error) { if (!authenticated) throw error; res = await send(); }
       if (authenticated && [401, 403].includes(res.status)) { current = null; NaveLabSession.clear(); clearInterval(timer); location.reload(); throw new Error("Sessão encerrada ou sem permissão."); }
       if (!res.ok) { if (res.status === 409) { const data = await res.json().catch(() => null); if (data?.snapshot) apply(data.snapshot); } throw new Error("Ação não disponível. Aguarde a outra tela ou atualize a demonstração."); }
       apply(await res.json());

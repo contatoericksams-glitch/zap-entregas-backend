@@ -12,6 +12,53 @@ const { createChannelLinkRouter } = require("../core/channel-link-router");
 const { createAuthLabApp } = require("../core/auth-lab");
 const { fixtureTotp } = require("./totp-fixture.cjs");
 
+test("real Auth protects expiring offers and idempotent retries", { timeout: 120000 }, async () => {
+  assert.equal(process.env.GITHUB_ACTIONS, "true");
+  const status = JSON.parse(fs.readFileSync(process.env.NAVE_TEST_STATUS_FILE, "utf8"));
+  const url = status.API_URL || status.api_url; assert.equal(url, "http://127.0.0.1:54321");
+  const key = status.ANON_KEY || status.anon_key;
+  const options = { auth: { persistSession: false, autoRefreshToken: false } };
+  const admin = createClient(url, status.SERVICE_ROLE_KEY || status.service_role_key, options), tokens = {};
+  for (const role of ["passenger", "driver"]) {
+    const email = `reservation-${crypto.randomUUID()}@example.invalid`, password = crypto.randomBytes(32).toString("hex");
+    assert.equal((await admin.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { nave_lab_role: role, nave_lab_driver_approved: role === "driver" } })).error, null);
+    const login = await createClient(url, key, options).auth.signInWithPassword({ email, password });
+    assert.equal(login.error, null); tokens[role] = login.data.session.access_token;
+  }
+  let now = Date.now();
+  const server = http.createServer(createAuthLabApp({ url, publishableKey: key, clock: () => now }));
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${server.address().port}/api/auth-lab/room`;
+  const call = async (role, body) => {
+    const response = await fetch(base, { method: body ? "POST" : "GET", headers: { Authorization: "Bearer " + tokens[role], "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+    return { status: response.status, replay: response.headers.get("Idempotency-Replayed"), data: await response.json().catch(() => null) };
+  };
+  try {
+    const { roomId } = (await call("passenger")).data;
+    const action = (role, action, version, extra = {}) => ({ roomId, role, action, version, requestKey: crypto.randomUUID(), ...extra });
+    await call("driver", action("driver", "availability", 0, { available: true }));
+    const start = action("passenger", "start", 1, { category: "eco" });
+    assert.equal((await call("passenger", start)).status, 200);
+    const replay = await call("passenger", start); assert.equal(replay.status, 200); assert.equal(replay.replay, "true"); assert.equal(replay.data.events.length, 2);
+    assert.equal((await call("passenger", { ...start, category: "confort" })).status, 409);
+    now += 120000;
+    const expired = await call("driver", action("driver", "accept", 2));
+    assert.equal(expired.status, 409); assert.equal(expired.data.snapshot.journey.phase, "cancelled");
+    const expiredReplay = await call("passenger", start);
+    assert.equal(expiredReplay.replay, "true"); assert.equal(expiredReplay.data.journey.phase, "cancelled"); assert.equal(expiredReplay.data.events.filter(e => e.action === "expire").length, 1);
+    await call("passenger", action("passenger", "reset", 3));
+    await call("passenger", action("passenger", "start", 4, { category: "eco" }));
+    const accept = action("driver", "accept", 5);
+    const duplicates = await Promise.all([call("driver", accept), call("driver", accept)]);
+    assert.deepEqual(duplicates.map(r => r.status), [200, 200]); assert.equal(duplicates.filter(r => r.replay === "true").length, 1);
+    now += 120000;
+    assert.equal((await call("passenger")).data.journey.phase, "driver_to_pickup");
+    const competing = await Promise.all([call("driver", action("driver", "arrive", 6)), call("driver", action("driver", "arrive", 6))]);
+    assert.deepEqual(competing.map(r => r.status).sort(), [200, 409]);
+    console.log("PASS: real Auth, same-key retry without duplicate events, conflicting key payload denied, exact-deadline expiry, late acceptance denied, replay cannot revive expiry, and distinct-key concurrency. Only the injected lab clock was advanced.");
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
 test("real ephemeral Supabase Auth sessions and Data API keep OTP ownership separate", { timeout: 120000 }, async () => {
   assert.equal(process.env.GITHUB_ACTIONS, "true", "This test only runs in the isolated GitHub runner");
   const status = JSON.parse(fs.readFileSync(process.env.NAVE_TEST_STATUS_FILE, "utf8"));
@@ -92,7 +139,7 @@ test("real app logins enforce approved driver and passenger ownership in the fic
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = "http://127.0.0.1:" + server.address().port;
   const call = async (route, token, body) => {
-    const r = await fetch(base + "/api/auth-lab/" + route, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    const r = await fetch(base + "/api/auth-lab/" + route, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) }, body: body ? JSON.stringify(route === "room" ? { requestKey: crypto.randomUUID(), ...body } : body) : undefined });
     return { status: r.status, data: await r.json().catch(() => null) };
   };
   const fixtures = {};

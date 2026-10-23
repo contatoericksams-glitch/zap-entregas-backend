@@ -33,7 +33,8 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
   assert.equal((await mfaClient.auth.mfa.challengeAndVerify({ factorId: factor.data.id, code: fixtureTotp(secret) })).error, null);
   if (Math.floor(Date.now() / 30000) === enrollmentStep) await new Promise(resolve => setTimeout(resolve, 31000 - Date.now() % 30000));
 
-  const server = http.createServer(createAuthLabApp({ url, publishableKey: key }));
+  let clockOffset = 0;
+  const server = http.createServer(createAuthLabApp({ url, publishableKey: key, clock: () => Date.now() + clockOffset }));
   let browser;
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -70,7 +71,19 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
     assert.equal(await passenger.page.locator("#start").isEnabled(), false, "Cannot request before login");
     await login(passenger.page, "passenger"); await login(driver.page, "driver"); await login(central.page, "central", true);
     await text(central.page, "version", "Versão 0");
-    await click(driver.page, "toggle"); await text(central.page, "version", "Versão 1");
+    const lostBodies = [];
+    const loseFirstResponse = async route => {
+      if (route.request().method() === "POST") {
+        lostBodies.push(route.request().postData());
+        if (lostBodies.length === 1) { await route.fetch(); await route.abort("failed"); return; }
+      }
+      await route.continue();
+    };
+    await driver.page.route(base + "/api/auth-lab/room", loseFirstResponse);
+    await click(driver.page, "toggle"); await text(driver.page, "availability", "Disponível na demonstração");
+    await text(central.page, "version", "Versão 1");
+    assert.equal(lostBodies.length, 2); assert.equal(lostBodies[0], lostBodies[1]);
+    await driver.page.unroute(base + "/api/auth-lab/room", loseFirstResponse);
     let version = 1;
     for (const category of ["eco", "confort", "executive", "navegator"]) {
       await passenger.page.locator(`input[name="category"][value="${category}"]`).check();
@@ -147,12 +160,23 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
     await click(passenger.page, "start"); version++; await text(driver.page, "phase", "Uma nova oferta fictícia");
     await click(driver.page, "decline"); version++;
     await text(passenger.page, "phase", "Simulação cancelada"); await text(central.page, "version", "Versão " + version);
+    await click(passenger.page, "reset"); version++;
+    await text(driver.page, "phase", "Seu próximo percurso começa aqui");
+    await click(passenger.page, "start"); version++; await text(driver.page, "phase", "Uma nova oferta fictícia");
+    clockOffset += 120000; // Only the in-memory offer clock, never Auth/JWT or a hosted database.
+    version++;
+    await text(passenger.page, "phase", "Simulação cancelada"); await text(driver.page, "phase", "Solicitação fictícia encerrada");
+    await text(central.page, "version", "Versão " + version);
+    assert.equal(await driver.page.locator("#accept").isVisible(), false);
+    assert.match(await central.page.locator("#events").textContent(), /Oferta de teste expirou/);
+    assert.match(await central.page.locator("#events").textContent(), /Sistema de teste/);
     await central.page.getByRole("button", { name: "Sair desta tela", exact: true }).click();
     await central.page.locator(".auth-panel form").waitFor({ state: "visible" });
     assert.equal(await central.page.locator("#events li").count(), 0, "Logout removes the observed history from the page");
     for (const view of [passenger.page, driver.page, central.page]) assert.deepEqual(await view.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length })), { local: 0, session: 0 });
     assert.equal(externalRequests, 0); assert.equal(pageErrors, 0);
     console.log("PASS: real Chromium contexts and form logins, Central MFA, four categories, one successful competing accept, offline recovery, cancellation, refusal, cross-account denial, and logout. Synthetic in-memory rides only; human/device P09 remains separate.");
+    console.log("PASS: Chromium lost-response recovery reuses the exact request key/body after server commit; one event only. Injected offer-clock expiry removes acceptance and appears as a system event across all views.");
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));

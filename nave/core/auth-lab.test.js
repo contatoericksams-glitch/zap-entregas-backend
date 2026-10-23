@@ -24,7 +24,7 @@ test("Central requires admin plus MFA, remains read-only, and rechecks revoked r
   } }) });
   const server = http.createServer(app); await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = "http://127.0.0.1:" + server.address().port;
-  const call = (token, method = "GET", body) => fetch(base + "/api/auth-lab/room", { method, headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const call = (token, method = "GET", body) => fetch(base + "/api/auth-lab/room", { method, headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" }, body: body ? JSON.stringify({ requestKey: require("node:crypto").randomUUID(), ...body }) : undefined });
   const login = code => fetch(base + "/api/auth-lab/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "admin@example.invalid", password: "fixture-only", ...(code ? { code } : {}) }) });
   try {
     assert.equal((await call("admin-aal1")).status, 403);
@@ -48,7 +48,7 @@ test("authenticated room binds roles and ownership before disclosing conflicts",
   const server = http.createServer(app); await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = "http://127.0.0.1:" + server.address().port;
   const call = async (token, body) => {
-    const r = await fetch(base + "/api/auth-lab/room", { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: body ? JSON.stringify(body) : undefined });
+    const r = await fetch(base + "/api/auth-lab/room", { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token }, body: body ? JSON.stringify({ requestKey: require("node:crypto").randomUUID(), ...body }) : undefined });
     return { status: r.status, data: await r.json().catch(() => null) };
   };
   try {
