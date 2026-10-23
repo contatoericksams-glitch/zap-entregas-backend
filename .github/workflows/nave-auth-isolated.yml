@@ -37,7 +37,9 @@ jobs:
           "$CLI" db reset --local --no-seed --workdir "$LAB" --yes > "$RUNNER_TEMP/nave-reset.log" 2>&1
           umask 077
           "$CLI" status --workdir "$LAB" --output json > "$RUNNER_TEMP/nave-status.json"
-      - name: Exercise real Auth, JWT, Data API and server-only OTP RPCs
+      - name: Check local contracts and user interfaces
+        run: node --test nave/core/*.test.js central-master-v4/*.test.js
+      - name: Exercise real Auth, app permissions, Data API and server-only OTP RPCs
         env:
           NAVE_TEST_STATUS_FILE: ${{ runner.temp }}/nave-status.json
         run: node --test nave/ci/channel-link-auth.ci.cjs

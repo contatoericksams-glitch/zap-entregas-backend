@@ -9,6 +9,7 @@ const { createClient } = require("@supabase/supabase-js");
 const { createChannelLinkService } = require("../core/channel-link");
 const { createChannelLinkSupabaseAdapters } = require("../core/channel-link-supabase");
 const { createChannelLinkRouter } = require("../core/channel-link-router");
+const { createAuthLabApp } = require("../core/auth-lab");
 
 test("real ephemeral Supabase Auth sessions and Data API keep OTP ownership separate", { timeout: 120000 }, async () => {
   assert.equal(process.env.GITHUB_ACTIONS, "true", "This test only runs in the isolated GitHub runner");
@@ -76,5 +77,53 @@ test("real ephemeral Supabase Auth sessions and Data API keep OTP ownership sepa
       assert.ok(rpc.error, "Clients cannot call privileged OTP RPCs directly");
     }
     console.log("PASS: two real Auth sessions, HTTP identity binding, RPC through Data API, cross-user denial, OTP replay denial, and client grants. No Meta or hosted project used.");
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
+test("real app logins enforce approved driver and passenger ownership in the fictional journey", { timeout: 120000 }, async () => {
+  assert.equal(process.env.GITHUB_ACTIONS, "true");
+  const status = JSON.parse(fs.readFileSync(process.env.NAVE_TEST_STATUS_FILE, "utf8"));
+  const url = status.API_URL || status.api_url;
+  assert.equal(url, "http://127.0.0.1:54321");
+  const publicKey = status.ANON_KEY || status.anon_key;
+  const admin = createClient(url, status.SERVICE_ROLE_KEY || status.service_role_key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const server = http.createServer(createAuthLabApp({ url, publishableKey: publicKey }));
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  const base = "http://127.0.0.1:" + server.address().port;
+  const call = async (route, token, body) => {
+    const r = await fetch(base + "/api/auth-lab/" + route, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    return { status: r.status, data: await r.json().catch(() => null) };
+  };
+  const fixtures = {};
+  try {
+    for (const [label, meta] of Object.entries({ passenger: { nave_lab_role: "passenger" }, other: { nave_lab_role: "passenger" }, driver: { nave_lab_role: "driver", nave_lab_driver_approved: true }, pending: { nave_lab_role: "driver" }, forged: {} })) {
+      const email = `${label}-${crypto.randomUUID()}@example.invalid`, password = crypto.randomBytes(32).toString("hex");
+      const user = await admin.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: meta, user_metadata: { nave_lab_role: "driver", nave_lab_driver_approved: true } });
+      assert.equal(user.error, null);
+      const login = await call("login", null, { email, password });
+      fixtures[label] = { id: user.data.user.id, token: login.data?.accessToken };
+      if (["pending", "forged"].includes(label)) { assert.equal(login.status, 403); continue; }
+      assert.equal(login.status, 200); assert.equal(login.data.role, meta.nave_lab_role);
+      assert.equal("refresh_token" in login.data, false);
+    }
+    assert.notEqual(fixtures.passenger.token, fixtures.driver.token);
+    assert.equal((await call("room")).status, 401);
+    const room = (await call("room", fixtures.passenger.token)).data;
+    const action = (label, role, action, version, extra = {}) => call("room", fixtures[label].token, { roomId: room.roomId, role, action, version, ...extra });
+    assert.equal((await action("passenger", "driver", "availability", 0, { available: true })).status, 403);
+    assert.equal((await action("driver", "driver", "availability", 0, { available: true })).status, 200);
+    assert.equal((await action("passenger", "passenger", "start", 1, { category: "eco" })).status, 200);
+    assert.equal((await call("room", fixtures.other.token)).status, 403);
+    assert.equal((await action("other", "passenger", "cancel", 0)).status, 403);
+    for (const [i, step] of ["accept", "arrive", "board", "complete"].entries()) assert.equal((await action("driver", "driver", step, 2 + i)).status, 200);
+    assert.equal((await call("room", fixtures.passenger.token)).data.journey.phase, "completed");
+    assert.equal((await call("room", fixtures.driver.token)).data.version, 6);
+    assert.equal((await admin.auth.admin.updateUserById(fixtures.driver.id, { app_metadata: { nave_lab_role: "driver", nave_lab_driver_approved: false } })).error, null);
+    assert.equal((await call("room", fixtures.driver.token)).status, 403, "Revoked approval must block the existing access token");
+    for (const page of ["passageiro.html?auth=1", "motorista.html?auth=1"]) {
+      const response = await fetch(base + "/" + page); assert.equal(response.status, 200);
+      assert.match(await response.text(), /auth-session\.js/);
+    }
+    console.log("PASS: app login endpoints, approved driver, forged metadata denial, cross-account isolation, complete fictional journey, and approval revocation with existing JWT. No hosted project or Meta used.");
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
