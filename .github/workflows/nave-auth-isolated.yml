@@ -1,0 +1,52 @@
+name: NAVE isolated Auth and OTP tests
+on:
+  push:
+    branches: [codex/nave-wa-account-link-draft]
+permissions:
+  contents: read
+jobs:
+  real-auth-isolated:
+    if: github.repository == 'contatoericksams-glitch/zap-entregas-backend' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned test dependencies and CLI
+        run: |
+          npm ci --prefix nave --ignore-scripts --no-audit --no-fund
+          npm install --prefix "$RUNNER_TEMP/nave-tools" --no-save --no-package-lock --no-audit --no-fund supabase@2.122.0
+      - name: Build temporary unlinked Supabase project
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLI="$RUNNER_TEMP/nave-tools/node_modules/.bin/supabase"
+          LAB="$RUNNER_TEMP/nave-auth-lab"
+          mkdir -p "$LAB"
+          "$CLI" --help > /dev/null
+          "$CLI" init --workdir "$LAB" --yes
+          "$CLI" migration new channel_link_ci --workdir "$LAB"
+          MIGRATION=$(find "$LAB/supabase/migrations" -name '*_channel_link_ci.sql' -print -quit)
+          test -n "$MIGRATION"
+          cat nave/ci/channel-link-fixture.sql nave/core/migrations/009_channel_link_otp_DRAFT.sql > "$MIGRATION"
+          "$CLI" start --workdir "$LAB" --exclude realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > "$RUNNER_TEMP/nave-start.log" 2>&1
+          "$CLI" db reset --local --no-seed --workdir "$LAB" --yes > "$RUNNER_TEMP/nave-reset.log" 2>&1
+          umask 077
+          "$CLI" status --workdir "$LAB" --output json > "$RUNNER_TEMP/nave-status.json"
+      - name: Exercise real Auth, JWT, Data API and server-only OTP RPCs
+        env:
+          NAVE_TEST_STATUS_FILE: ${{ runner.temp }}/nave-status.json
+        run: node --test nave/ci/channel-link-auth.ci.cjs
+      - name: Stop this ephemeral stack
+        if: always()
+        shell: bash
+        run: |
+          CLI="$RUNNER_TEMP/nave-tools/node_modules/.bin/supabase"
+          LAB="$RUNNER_TEMP/nave-auth-lab"
+          if [ -x "$CLI" ] && [ -f "$LAB/supabase/config.toml" ]; then
+            "$CLI" stop --workdir "$LAB" --no-backup > "$RUNNER_TEMP/nave-stop.log" 2>&1
+          fi
