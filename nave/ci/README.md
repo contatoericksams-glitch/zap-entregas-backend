@@ -37,3 +37,13 @@ A configuração TOTP é ativada somente no config.toml recém-gerado em RUNNER_
 Corrigida também a reconexão após a primeira leitura falhar temporariamente: enquanto existe token em memória, o polling é mantido; 401/403 continuam apagando o token e recarregando a tela. Nenhum endpoint de autenticação é montado no servidor comum 4317.
 
 Referências: [MFA assurance](https://supabase.com/docs/reference/javascript/auth-mfa-getauthenticatorassurancelevel), [enroll](https://supabase.com/docs/reference/javascript/auth-mfa-enroll), [challengeAndVerify](https://supabase.com/docs/reference/javascript/auth-mfa-challengeandverify). O campo TOTP foi conferido no template oficial do CLI 2.122.0.
+
+## Preparação automática para P09 — navegadores reais isolados
+
+Nova bateria `ci/app-browser.ci.cjs` usa Playwright 1.64.1 fixado no lockfile e Chromium headless instalado somente no runner descartável. Não instala binários de navegador no computador local. Cada papel usa contexto independente e login pelo formulário da tela, com contas `.invalid` no Supabase efêmero. A Central usa MFA TOTP real. Não há injeção de tokens nas páginas.
+
+Cobertura preparada: jornada nas quatro categorias por cliques, dois aceites simultâneos de sessões distintas do mesmo motorista (uma ação e um conflito), perda/retomada de rede do passageiro, conta externa recusada sem receber a jornada, cancelamento, recusa do motorista, conciliação dos valores ilustrativos entre telas, saída da Central limpando histórico e ausência de tokens em storage. A rede do navegador recusa origens externas; não são produzidos traces, storageState, vídeos, screenshots ou artefatos públicos com credenciais.
+
+As **164 verificações locais passaram** novamente. A nova bateria de navegador ainda aguarda execução no CI nesta revisão. Isso é preparação automatizada em Chromium de runner; não equivale ao P09 humano original, teste em dois aparelhos físicos, aplicação final, persistência operacional, delivery WhatsApp ou homologação. A sala continua em memória e as corridas são fictícias.
+
+Referências: [Playwright CI](https://playwright.dev/docs/ci-intro), [isolamento de contextos](https://playwright.dev/docs/browser-contexts). Versão do pacote consultada no npm; comando de instalação conferido no help da versão fixada. Nenhum projeto Supabase hospedado, Render ou serviço pago é usado.
