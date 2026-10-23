@@ -29,6 +29,7 @@ jobs:
           mkdir -p "$LAB"
           "$CLI" --help > /dev/null
           "$CLI" init --workdir "$LAB" --yes
+          node nave/ci/configure-auth-lab.cjs "$LAB/supabase/config.toml"
           "$CLI" migration new channel_link_ci --workdir "$LAB"
           MIGRATION=$(find "$LAB/supabase/migrations" -name '*_channel_link_ci.sql' -print -quit)
           test -n "$MIGRATION"

@@ -10,6 +10,7 @@ const options = { auth: { persistSession: false, autoRefreshToken: false, detect
 function roleFor(user) {
   // user_metadata is user-editable and must never grant privileges.
   const meta = user?.app_metadata;
+  if (meta?.nave_lab_role === "admin") return "observer";
   if (meta?.nave_lab_role === "passenger") return "passenger";
   if (meta?.nave_lab_role === "driver" && meta.nave_lab_driver_approved === true) return "driver";
   return null;
@@ -33,28 +34,47 @@ function createAuthLabApp({ url, publishableKey, makeClient = createClient } = {
     const token = /^Bearer ([^\s]+)$/.exec(req.get("authorization") || "")?.[1];
     if (!token || token.length > 8192) return res.sendStatus(401);
     try {
-      const { data, error } = await makeClient(url, publishableKey, options).auth.getUser(token);
+      const client = makeClient(url, publishableKey, options);
+      const { data, error } = await client.auth.getUser(token);
       if (error || !data?.user?.id) return res.sendStatus(401);
       const role = roleFor(data.user);
       if (!role) return res.sendStatus(403);
+      if (role === "observer") {
+        const assurance = await client.auth.mfa.getAuthenticatorAssuranceLevel(token);
+        if (assurance.error) return res.sendStatus(503);
+        if (assurance.data?.currentLevel !== "aal2" || assurance.data?.nextLevel !== "aal2") return res.sendStatus(403);
+      }
       req.labActor = { id: data.user.id, role };
       next();
     } catch (_) { res.sendStatus(503); }
   };
   app.post("/api/auth-lab/login", express.json({ limit: "2kb" }), async (req, res) => {
     const body = req.body;
-    if (!req.is("application/json") || !body || Array.isArray(body) || Object.keys(body).some(k => !["email", "password"].includes(k)) || typeof body.email !== "string" || body.email.length > 254 || !/^[^@\s]+@example\.invalid$/.test(body.email) || typeof body.password !== "string" || body.password.length > 256) return res.sendStatus(400);
+    if (!req.is("application/json") || !body || Array.isArray(body) || Object.keys(body).some(k => !["email", "password", "code"].includes(k)) || typeof body.email !== "string" || body.email.length > 254 || !/^[^@\s]+@example\.invalid$/.test(body.email) || typeof body.password !== "string" || body.password.length > 256 || (body.code !== undefined && (typeof body.code !== "string" || !/^[0-9]{6}$/.test(body.code)))) return res.sendStatus(400);
     const now = Date.now();
     while (attempts.length && attempts[0] <= now - 60000) attempts.shift();
     if (attempts.length >= 12) { res.set("Retry-After", "60"); return res.sendStatus(429); }
     attempts.push(now);
     try {
-      const { data, error } = await makeClient(url, publishableKey, options).auth.signInWithPassword(body);
+      const client = makeClient(url, publishableKey, options);
+      const { data, error } = await client.auth.signInWithPassword({ email: body.email, password: body.password });
       if (error || !data?.session?.access_token) return res.sendStatus(401);
       const role = roleFor(data.user);
       if (!role) return res.sendStatus(403);
+      let accessToken = data.session.access_token;
+      if (role === "observer") {
+        if (!body.code) return res.sendStatus(403);
+        const factors = await client.auth.mfa.listFactors();
+        const factor = factors.data?.totp?.find(item => item.status === "verified");
+        if (factors.error || !factor) return res.sendStatus(403);
+        const verified = await client.auth.mfa.challengeAndVerify({ factorId: factor.id, code: body.code });
+        if (verified.error || !verified.data?.access_token) return res.sendStatus(403);
+        accessToken = verified.data.access_token;
+        const assurance = await client.auth.mfa.getAuthenticatorAssuranceLevel(accessToken);
+        if (assurance.error || assurance.data?.currentLevel !== "aal2" || assurance.data?.nextLevel !== "aal2") return res.sendStatus(403);
+      }
       // No refresh token, password, email or server key is returned or persisted.
-      res.json({ accessToken: data.session.access_token, role, testOnly: true });
+      res.json({ accessToken, role, testOnly: true });
     } catch (_) { res.sendStatus(503); }
   });
   app.get("/api/auth-lab/session", requireUser, (req, res) => res.json({ role: req.labActor.role, testOnly: true }));

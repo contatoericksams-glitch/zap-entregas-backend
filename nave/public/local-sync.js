@@ -27,9 +27,9 @@ const NaveLocalSync = (() => {
     document.querySelector("header").after(note);
     if (label !== "observer" && !authenticated) { const link = document.createElement("a"); link.href = "/central-local.html?shared=1"; link.textContent = " Abrir Central local →"; note.append(link); }
     document.querySelectorAll('a[href="/passageiro.html"],a[href="/motorista.html"]').forEach(link => { link.href += authenticated ? "?auth=1" : "?shared=1"; });
-    const start = async () => { await read(); if (!authenticated || current) timer = setInterval(read, 1000); };
+    const start = async () => { await read(); if (!authenticated || Object.keys(headers()).length > 0) timer = setInterval(read, 1000); };
     if (authenticated) {
-      if (label === "observer" || typeof NaveLabSession === "undefined") { document.getElementById("error").textContent = "A Central ainda não está habilitada para contas autenticadas."; return; }
+      if (typeof NaveLabSession === "undefined") { document.getElementById("error").textContent = "Login de teste indisponível nesta tela."; return; }
       NaveLabSession.mount(label, start);
       const footer = document.querySelector("footer span");
       if (footer) footer.textContent = "Teste de sessão isolada · Sem viagens comerciais.";

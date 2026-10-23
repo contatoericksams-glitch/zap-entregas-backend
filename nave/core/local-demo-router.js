@@ -21,7 +21,9 @@ function createLocalDemoRouter({ authenticated = false, requireUser } = {}) {
     router.use(requireUser);
     router.use((req, res, next) => {
       const actor = req.labActor;
-      if (!actor || !["passenger", "driver"].includes(actor.role)) return res.sendStatus(403);
+      if (!actor || !["passenger", "driver", "observer"].includes(actor.role)) return res.sendStatus(403);
+      // Admin observers cannot mutate, even with forged roles, versions or other methods.
+      if (actor.role === "observer" && !["GET", "HEAD"].includes(req.method)) return res.sendStatus(403);
       // Check ownership before returning any snapshot, including conflict responses.
       if ((actor.role === "passenger" && passengerId && passengerId !== actor.id) ||
           (actor.role === "driver" && driverId && driverId !== actor.id)) return res.sendStatus(403);

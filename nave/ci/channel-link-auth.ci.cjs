@@ -10,6 +10,7 @@ const { createChannelLinkService } = require("../core/channel-link");
 const { createChannelLinkSupabaseAdapters } = require("../core/channel-link-supabase");
 const { createChannelLinkRouter } = require("../core/channel-link-router");
 const { createAuthLabApp } = require("../core/auth-lab");
+const { fixtureTotp } = require("./totp-fixture.cjs");
 
 test("real ephemeral Supabase Auth sessions and Data API keep OTP ownership separate", { timeout: 120000 }, async () => {
   assert.equal(process.env.GITHUB_ACTIONS, "true", "This test only runs in the isolated GitHub runner");
@@ -107,23 +108,59 @@ test("real app logins enforce approved driver and passenger ownership in the fic
       assert.equal("refresh_token" in login.data, false);
     }
     assert.notEqual(fixtures.passenger.token, fixtures.driver.token);
+    const adminEmail = `central-${crypto.randomUUID()}@example.invalid`, adminPassword = crypto.randomBytes(32).toString("hex");
+    const centralUser = await admin.auth.admin.createUser({ email: adminEmail, password: adminPassword, email_confirm: true, app_metadata: { nave_lab_role: "admin" } });
+    assert.equal(centralUser.error, null);
+    const centralClient = createClient(url, publicKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const centralSignIn = await centralClient.auth.signInWithPassword({ email: adminEmail, password: adminPassword });
+    assert.equal(centralSignIn.error, null);
+    const aal1 = centralSignIn.data.session.access_token;
+    assert.equal((await call("room", aal1)).status, 403, "Admin without MFA cannot read the room");
+    assert.equal((await call("login", null, { email: adminEmail, password: adminPassword })).status, 403);
+    const factor = await centralClient.auth.mfa.enroll({ factorType: "totp", friendlyName: "Ephemeral-Central-fixture" });
+    assert.equal(factor.error, null, "Ephemeral TOTP enrollment failed");
+    const secret = factor.data.totp.secret;
+    // Avoid boundary races while verifying the fixture's newly enrolled factor.
+    if (Date.now() % 30000 > 25000) await new Promise(resolve => setTimeout(resolve, 31000 - Date.now() % 30000));
+    const enrollmentStep = Math.floor(Date.now() / 30000);
+    const enrollment = await centralClient.auth.mfa.challengeAndVerify({ factorId: factor.data.id, code: fixtureTotp(secret) });
+    assert.equal(enrollment.error, null, "Ephemeral TOTP verification failed");
+    // A different time step prevents reusing the enrollment OTP at the app login endpoint.
+    if (Math.floor(Date.now() / 30000) === enrollmentStep) await new Promise(resolve => setTimeout(resolve, 31000 - Date.now() % 30000));
+    const wrongCode = ((Number(fixtureTotp(secret)) + 1) % 1000000).toString().padStart(6, "0");
+    assert.equal((await call("login", null, { email: adminEmail, password: adminPassword, code: wrongCode })).status, 403);
+    const centralLogin = await call("login", null, { email: adminEmail, password: adminPassword, code: fixtureTotp(secret) });
+    assert.equal(centralLogin.status, 200); assert.equal(centralLogin.data.role, "observer");
+    const centralToken = centralLogin.data.accessToken;
+    assert.equal((await call("room", centralToken)).status, 200);
+    assert.equal((await call("room", aal1)).status, 403);
     assert.equal((await call("room")).status, 401);
     const room = (await call("room", fixtures.passenger.token)).data;
     const action = (label, role, action, version, extra = {}) => call("room", fixtures[label].token, { roomId: room.roomId, role, action, version, ...extra });
     assert.equal((await action("passenger", "driver", "availability", 0, { available: true })).status, 403);
     assert.equal((await action("driver", "driver", "availability", 0, { available: true })).status, 200);
     assert.equal((await action("passenger", "passenger", "start", 1, { category: "eco" })).status, 200);
+    const centralSnapshot = (await call("room", centralToken)).data;
+    assert.equal(centralSnapshot.journey.phase, "offer_pending"); assert.equal(centralSnapshot.version, 2);
+    const deniedWrite = await call("room", centralToken, { roomId: room.roomId, role: "driver", action: "accept", version: 0 });
+    assert.equal(deniedWrite.status, 403); assert.equal(deniedWrite.data, null);
+    assert.deepEqual((await call("room", centralToken)).data, centralSnapshot, "Reading or denied writing cannot change state/history");
     assert.equal((await call("room", fixtures.other.token)).status, 403);
     assert.equal((await action("other", "passenger", "cancel", 0)).status, 403);
     for (const [i, step] of ["accept", "arrive", "board", "complete"].entries()) assert.equal((await action("driver", "driver", step, 2 + i)).status, 200);
     assert.equal((await call("room", fixtures.passenger.token)).data.journey.phase, "completed");
     assert.equal((await call("room", fixtures.driver.token)).data.version, 6);
+    const observed = (await call("room", centralToken)).data;
+    assert.equal(observed.journey.phase, "completed"); assert.equal(observed.events.length, 6);
+    assert.equal((await admin.auth.admin.updateUserById(centralUser.data.user.id, { app_metadata: { nave_lab_role: "disabled" } })).error, null);
+    assert.equal((await call("room", centralToken)).status, 403, "Removed admin role blocks the existing AAL2 token");
     assert.equal((await admin.auth.admin.updateUserById(fixtures.driver.id, { app_metadata: { nave_lab_role: "driver", nave_lab_driver_approved: false } })).error, null);
     assert.equal((await call("room", fixtures.driver.token)).status, 403, "Revoked approval must block the existing access token");
-    for (const page of ["passageiro.html?auth=1", "motorista.html?auth=1"]) {
+    for (const page of ["passageiro.html?auth=1", "motorista.html?auth=1", "central-local.html?auth=1"]) {
       const response = await fetch(base + "/" + page); assert.equal(response.status, 200);
       assert.match(await response.text(), /auth-session\.js/);
     }
     console.log("PASS: app login endpoints, approved driver, forged metadata denial, cross-account isolation, complete fictional journey, and approval revocation with existing JWT. No hosted project or Meta used.");
+    console.log("PASS: Central admin requires real TOTP/AAL2, rejects missing/wrong factor, observes without mutations, refuses forged writes, and loses access when admin role is removed. No personal MFA or hosted project used.");
   } finally { await new Promise(resolve => server.close(resolve)); }
 });

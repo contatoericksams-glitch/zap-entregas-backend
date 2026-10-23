@@ -11,6 +11,37 @@ test("lab rejects hosted projects and user-editable role/approval metadata", () 
   assert.equal(roleFor({ app_metadata: { nave_lab_role: "driver", nave_lab_driver_approved: true } }), "driver");
 });
 
+test("Central requires admin plus MFA, remains read-only, and rechecks revoked role", async () => {
+  const admin = { id: "admin-fixture", app_metadata: { nave_lab_role: "admin" } };
+  const app = createAuthLabApp({ url: "http://127.0.0.1:54321", publishableKey: "test", makeClient: () => ({ auth: {
+    getUser: async token => ({ data: { user: token.startsWith("admin-") ? admin : { id: "p", app_metadata: { nave_lab_role: "passenger" }, user_metadata: { nave_lab_role: "admin" } } } }),
+    signInWithPassword: async () => ({ data: { user: admin, session: { access_token: "admin-aal1" } } }),
+    mfa: {
+      getAuthenticatorAssuranceLevel: async token => ({ data: { currentLevel: token === "admin-aal2" ? "aal2" : "aal1", nextLevel: "aal2" } }),
+      listFactors: async () => ({ data: { totp: [{ id: "fixture-factor", status: "verified" }] } }),
+      challengeAndVerify: async ({ code }) => code === "123456" ? { data: { access_token: "admin-aal2" } } : { error: true },
+    },
+  } }) });
+  const server = http.createServer(app); await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  const base = "http://127.0.0.1:" + server.address().port;
+  const call = (token, method = "GET", body) => fetch(base + "/api/auth-lab/room", { method, headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const login = code => fetch(base + "/api/auth-lab/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "admin@example.invalid", password: "fixture-only", ...(code ? { code } : {}) }) });
+  try {
+    assert.equal((await call("admin-aal1")).status, 403);
+    assert.equal((await login()).status, 403);
+    assert.equal((await login("000000")).status, 403);
+    const loggedIn = await login("123456"); assert.equal(loggedIn.status, 200); assert.equal((await loggedIn.json()).role, "observer");
+    const initial = await (await call("admin-aal2")).json();
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      assert.equal((await call("admin-aal2", method, { role: "driver", action: "availability", available: true, roomId: initial.roomId, version: -1 })).status, 403);
+    }
+    assert.deepEqual(await (await call("admin-aal2")).json(), initial);
+    admin.app_metadata.nave_lab_role = null;
+    assert.equal((await call("admin-aal2")).status, 403);
+    assert.equal(roleFor({ user_metadata: { nave_lab_role: "admin" } }), null);
+  } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
 test("authenticated room binds roles and ownership before disclosing conflicts", async () => {
   const users = { p: { id: "passenger", app_metadata: { nave_lab_role: "passenger" } }, other: { id: "other", app_metadata: { nave_lab_role: "passenger" } }, d: { id: "driver", app_metadata: { nave_lab_role: "driver", nave_lab_driver_approved: true } }, pending: { id: "pending", app_metadata: { nave_lab_role: "driver" } } };
   const app = createAuthLabApp({ url: "http://127.0.0.1:54321", publishableKey: "test", makeClient: () => ({ auth: { getUser: async token => ({ data: { user: users[token] } }), signInWithPassword: async ({ password }) => ({ data: { user: users[password], session: users[password] ? { access_token: password } : null } }) } }) });
