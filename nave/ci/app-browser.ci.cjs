@@ -21,10 +21,10 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
     const email = `browser-${name}-${crypto.randomUUID()}@example.invalid`, password = crypto.randomBytes(32).toString("hex");
     const created = await admin.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: metadata });
     assert.equal(created.error, null, "Browser fixture creation failed");
-    fixtures[name] = { email, password };
+    fixtures[name] = { email, password, id: created.data.user.id };
   }
   const mfaClient = createClient(url, key, options);
-  assert.equal((await mfaClient.auth.signInWithPassword(fixtures.central)).error, null);
+  assert.equal((await mfaClient.auth.signInWithPassword({ email: fixtures.central.email, password: fixtures.central.password })).error, null);
   const factor = await mfaClient.auth.mfa.enroll({ factorType: "totp", friendlyName: "Browser-Central-fixture" });
   assert.equal(factor.error, null);
   const secret = factor.data.totp.secret;
@@ -39,10 +39,14 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   let externalRequests = 0, pageErrors = 0;
+  let lastCentralLoginStep = null;
   const text = (page, id, value) => page.waitForFunction(({ id, value }) => document.getElementById(id)?.textContent === value, { id, value });
   const enabled = (page, id) => page.waitForFunction(id => { const el = document.getElementById(id); return el && !el.disabled && !el.hidden; }, id);
   const click = async (page, id) => { await enabled(page, id); await page.locator("#" + id).click(); };
   async function login(page, name, central = false) {
+    if (central) {
+      if (lastCentralLoginStep === Math.floor(Date.now() / 30000) || Date.now() % 30000 > 25000) await new Promise(resolve => setTimeout(resolve, 31000 - Date.now() % 30000));
+    }
     // Do not include generated passwords/TOTP or Playwright's fill call logs in errors.
     try {
       await page.getByLabel("Email de teste", { exact: true }).fill(fixtures[name].email);
@@ -52,6 +56,7 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
       await page.locator(".auth-panel form").waitFor({ state: "hidden" });
       assert.equal(await page.getByLabel("Senha de teste", { exact: true }).inputValue(), "");
       if (central) assert.equal(await page.getByLabel("Código do autenticador de teste", { exact: true }).inputValue(), "");
+      if (central) lastCentralLoginStep = Math.floor(Date.now() / 30000);
     } catch (_) { throw new Error("Browser fixture login or sensitive-field cleanup failed"); }
   }
   async function pageFor(file) {
@@ -129,6 +134,16 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
       await text(passenger.page, "phase", "Sua NAVE está a caminho · teste");
       await text(driver.page, "phase", "A caminho do embarque · teste");
       if (category === "eco") {
+        const historyBeforeReload = await central.page.locator("#events li").count();
+        await passenger.page.reload();
+        await passenger.page.locator(".auth-panel form").waitFor({ state: "visible" });
+        assert.equal(await passenger.page.locator("#start").isEnabled(), false);
+        assert.equal(await passenger.page.locator("#driver").isVisible(), false, "Reload must clear the previous identity and trip view");
+        await login(passenger.page, "passenger");
+        await text(passenger.page, "phase", "Sua NAVE está a caminho · teste");
+        assert.equal(await passenger.page.locator("#start").isEnabled(), false, "Reauthentication resumes the existing journey instead of starting another");
+        await text(central.page, "version", "Versão " + version);
+        assert.equal(await central.page.locator("#events li").count(), historyBeforeReload);
         await passenger.context.setOffline(true);
         await passenger.page.waitForFunction(() => document.getElementById("error").textContent.includes("Conexão local indisponível"));
         await click(driver.page, "advance"); version++;
@@ -138,6 +153,20 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
       await text(passenger.page, "phase", "Sua NAVE chegou · teste");
       if (category === "eco") assert.equal(await passenger.page.locator("#error").textContent(), "");
       await text(driver.page, "phase", "No ponto de embarque · teste");
+      if (category === "eco") {
+        const historyBeforeRevocation = await central.page.locator("#events li").count();
+        const denied = driver.page.waitForResponse(r => r.url() === base + "/api/auth-lab/room" && r.status() === 403);
+        assert.equal((await admin.auth.admin.updateUserById(fixtures.driver.id, { app_metadata: { nave_lab_role: "driver", nave_lab_driver_approved: false } })).error, null);
+        await denied; await driver.page.locator(".auth-panel form").waitFor({ state: "visible" });
+        assert.equal(await driver.page.locator("#trip").isVisible(), false);
+        assert.equal(await driver.page.locator("#advance").isVisible(), false);
+        await text(passenger.page, "phase", "Sua NAVE chegou · teste");
+        await text(central.page, "version", "Versão " + version);
+        assert.equal(await central.page.locator("#events li").count(), historyBeforeRevocation);
+        assert.equal((await admin.auth.admin.updateUserById(fixtures.driver.id, { app_metadata: { nave_lab_role: "driver", nave_lab_driver_approved: true } })).error, null);
+        await login(driver.page, "driver");
+        await text(driver.page, "phase", "No ponto de embarque · teste");
+      }
       await click(driver.page, "advance"); version++;
       await text(passenger.page, "phase", "Aproveite o caminho · teste");
       assert.equal(await passenger.page.locator("#cancel").isVisible(), false);
@@ -170,6 +199,15 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
     assert.equal(await driver.page.locator("#accept").isVisible(), false);
     assert.match(await central.page.locator("#events").textContent(), /Oferta de teste expirou/);
     assert.match(await central.page.locator("#events").textContent(), /Sistema de teste/);
+    const deniedCentral = central.page.waitForResponse(r => r.url() === base + "/api/auth-lab/room" && r.status() === 403);
+    assert.equal((await admin.auth.admin.updateUserById(fixtures.central.id, { app_metadata: { nave_lab_role: "disabled" } })).error, null);
+    await deniedCentral; await central.page.locator(".auth-panel form").waitFor({ state: "visible" });
+    assert.equal(await central.page.locator("#events li").count(), 0);
+    assert.equal(await central.page.locator("#journey").isVisible(), false);
+    assert.equal((await admin.auth.admin.updateUserById(fixtures.central.id, { app_metadata: { nave_lab_role: "admin" } })).error, null);
+    await login(central.page, "central", true);
+    await text(central.page, "version", "Versão " + version);
+    assert.match(await central.page.locator("#events").textContent(), /Oferta de teste expirou/);
     await central.page.getByRole("button", { name: "Sair desta tela", exact: true }).click();
     await central.page.locator(".auth-panel form").waitFor({ state: "visible" });
     assert.equal(await central.page.locator("#events li").count(), 0, "Logout removes the observed history from the page");
@@ -177,6 +215,7 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
     assert.equal(externalRequests, 0); assert.equal(pageErrors, 0);
     console.log("PASS: real Chromium contexts and form logins, Central MFA, four categories, one successful competing accept, offline recovery, cancellation, refusal, cross-account denial, and logout. Synthetic in-memory rides only; human/device P09 remains separate.");
     console.log("PASS: Chromium lost-response recovery reuses the exact request key/body after server commit; one event only. Injected offer-clock expiry removes acceptance and appears as a system event across all views.");
+    console.log("PASS: passenger reload requires login and resumes the existing journey without events; driver approval withdrawal and Central admin-role withdrawal clear live trip/history views. Fixture reauthorization requires fresh form login and Central MFA; no extra journey events.");
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
