@@ -91,6 +91,7 @@ function createLocalDemoRouter({ authenticated = false, requireUser, clock = Dat
       for (const [key, record] of receipts) if (record.expiresAt <= now) receipts.delete(key);
       receiptKey = JSON.stringify([req.labActor.id, req.labActor.role, b.requestKey.toLowerCase()]);
       fingerprint = JSON.stringify([b.roomId, b.role, b.action, b.version, b.category, b.available]);
+      if (fingerprint.length > 512) return res.sendStatus(400);
       const previous = receipts.get(receiptKey);
       if (previous) {
         if (previous.fingerprint !== fingerprint) return res.status(409).json({ error: "request_key_conflict" });
