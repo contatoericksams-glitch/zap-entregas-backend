@@ -1,8 +1,8 @@
 "use strict";
 const { test } = require("node:test"), assert = require("node:assert/strict"), vm = require("node:vm"), fs = require("node:fs"), path = require("node:path");
-test("authenticated client retries uncertain delivery once with the identical body/key", async () => {
+for (const storage of ["process-memory", "runner-checkpoint"]) test("authenticated client retries uncertain delivery with identical body/key: " + storage, async () => {
   const source = fs.readFileSync(path.join(__dirname, "../public/local-sync.js"), "utf8"), posts = [];
-  const snapshot = { roomId: "fixture-room", version: 0, testOnly: true, storage: "process-memory", commercialRidesEnabled: false, whatsappSendEnabled: false, paymentsEnabled: false };
+  const snapshot = { roomId: "fixture-room", version: 0, testOnly: true, storage, commercialRidesEnabled: false, whatsappSendEnabled: false, paymentsEnabled: false };
   const node = () => ({ textContent: "", after() {}, append() {} });
   let connect, uuidCalls = 0;
   const context = vm.createContext({ URLSearchParams, AbortSignal, location: { search: "?auth=1", reload() {} }, document: { createElement: node, querySelector: node, querySelectorAll: () => [], getElementById: node }, window: { addEventListener() {} }, setInterval() { return 1; }, clearInterval() {}, crypto: { randomUUID() { uuidCalls++; return "fixture-request-key"; } }, NaveLabSession: { headers: () => ({ Authorization: "Bearer fixture" }), clear() {}, mount(_role, start) { connect = start(); } }, fetch: async (_url, options) => {

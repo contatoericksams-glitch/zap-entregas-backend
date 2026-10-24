@@ -6,8 +6,9 @@ const NaveLocalSync = (() => {
   const headers = () => authenticated ? NaveLabSession.headers() : {};
   let current = null, role, receive, pending = false, reading = false, connectionFailed = false, timer;
   function apply(data) {
-    if (data.testOnly !== true || data.storage !== "process-memory" || data.commercialRidesEnabled !== false || data.whatsappSendEnabled !== false || data.paymentsEnabled !== false || !Number.isSafeInteger(data.version)) throw new Error("Resposta incompatível com demonstração local.");
+    if (data.testOnly !== true || !(data.storage === "process-memory" || authenticated && data.storage === "runner-checkpoint") || data.commercialRidesEnabled !== false || data.whatsappSendEnabled !== false || data.paymentsEnabled !== false || !Number.isSafeInteger(data.version)) throw new Error("Resposta incompatível com demonstração local.");
     if (!current || data.roomId !== current.roomId || data.version > current.version) { current = data; receive(data); }
+    if (authenticated && data.storage === "runner-checkpoint") document.querySelector(".notice").textContent = "LABORATÓRIO COM RECUPERAÇÃO TEMPORÁRIA · Estado preservado apenas no runner após reinício controlado. Oferta fictícia vence em 2 minutos. Sem viagens comerciais.";
   }
   async function read() {
     if (pending || reading) return;

@@ -5,6 +5,7 @@ const path = require("node:path");
 const { createClient } = require("@supabase/supabase-js");
 const { createLocalDemoRouter } = require("./local-demo-router");
 const { createPreviewRouter } = require("./preview-router");
+const { LabCheckpoint } = require("./lab-checkpoint");
 const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
 
 function roleFor(user) {
@@ -16,7 +17,7 @@ function roleFor(user) {
   return null;
 }
 
-function createAuthLabApp({ url, publishableKey, makeClient = createClient, clock = Date.now } = {}) {
+function createAuthLabApp({ url, publishableKey, makeClient = createClient, clock = Date.now, checkpointDirectory } = {}) {
   if (url !== "http://127.0.0.1:54321" || !publishableKey) throw new Error("Only ephemeral loopback Supabase is allowed");
   const app = express();
   app.disable("x-powered-by");
@@ -78,7 +79,14 @@ function createAuthLabApp({ url, publishableKey, makeClient = createClient, cloc
     } catch (_) { res.sendStatus(503); }
   });
   app.get("/api/auth-lab/session", requireUser, (req, res) => res.json({ role: req.labActor.role, testOnly: true }));
-  app.use("/api/auth-lab/room", createLocalDemoRouter({ authenticated: true, requireUser, clock }));
+  let checkpoint;
+  if (checkpointDirectory !== undefined) {
+    if (process.env.GITHUB_ACTIONS !== "true" || !process.env.RUNNER_TEMP || path.resolve(checkpointDirectory) !== path.resolve(process.env.RUNNER_TEMP, "nave-room-checkpoint")) throw new Error("Checkpoint is restricted to the ephemeral runner directory");
+    checkpoint = new LabCheckpoint(checkpointDirectory);
+  }
+  try { app.use("/api/auth-lab/room", createLocalDemoRouter({ authenticated: true, requireUser, clock, checkpoint })); }
+  catch (error) { if (checkpoint) checkpoint.close(); throw error; }
+  app.locals.closeLab = () => { if (checkpoint) checkpoint.close(); };
   app.use("/api/v5", createPreviewRouter());
   app.use(express.static(path.join(__dirname, "../public"), { index: false }));
   return app;

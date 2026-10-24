@@ -46,6 +46,10 @@ jobs:
         env:
           NAVE_TEST_STATUS_FILE: ${{ runner.temp }}/nave-status.json
         run: node --test nave/ci/channel-link-auth.ci.cjs
+      - name: Verify controlled process restarts with a runner-only checkpoint
+        env:
+          NAVE_TEST_STATUS_FILE: ${{ runner.temp }}/nave-status.json
+        run: node --test nave/ci/checkpoint-restart.ci.cjs
       - name: Exercise separate browser contexts with real fixture accounts
         env:
           NAVE_TEST_STATUS_FILE: ${{ runner.temp }}/nave-status.json
