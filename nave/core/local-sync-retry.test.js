@@ -45,3 +45,29 @@ for (const authenticated of [false, true]) test("disconnected client blocks comm
   offline = false; await poll(); await context.sync.mutate("start");
   assert.equal(posts, authenticated ? 3 : 2);
 });
+
+for (const authenticated of [false, true]) test("unreadable committed responses block another command until reconciliation: " + authenticated, async () => {
+  for (const failure of ["truncated-json", "unsafe-flags"]) {
+    const source = fs.readFileSync(path.join(__dirname, "../public/local-sync.js"), "utf8");
+    const snapshot = { roomId: "fixture-room", version: 0, testOnly: true, storage: "process-memory", commercialRidesEnabled: false, whatsappSendEnabled: false, paymentsEnabled: false };
+    const node = () => ({ textContent: "", after() {}, append() {} });
+    let connect, poll, posts = 0, lastVersion;
+    const connectionStates = [];
+    const context = vm.createContext({ URLSearchParams, AbortSignal, location: { search: authenticated ? "?auth=1" : "?shared=1", reload() {} }, document: { createElement: node, querySelector: node, querySelectorAll: () => [], getElementById: node }, window: { addEventListener() {} }, setInterval(fn) { poll = fn; return 1; }, clearInterval() {}, crypto: { randomUUID: () => "fixture-request-key" }, NaveLabSession: { headers: () => ({ Authorization: "Bearer fixture" }), clear() {}, mount(_role, start) { connect = start(); } }, fetch: async (_url, options) => {
+      if (options.method === "POST") { posts++; snapshot.version++; return { ok: true, json: async () => { if (failure === "truncated-json") throw new SyntaxError("Incomplete JSON"); return { ...snapshot, paymentsEnabled: true }; } }; }
+      return { ok: true, json: async () => ({ ...snapshot }) };
+    } });
+    vm.runInContext(source + ";globalThis.sync = NaveLocalSync", context);
+    await context.sync.connect("passenger", data => { lastVersion = data.version; }, value => connectionStates.push(value)); await connect;
+    await assert.rejects(context.sync.mutate("start"));
+    assert.equal(posts, 1, "A received HTTP success with unreadable content must not be retried");
+    assert.equal(connectionStates.at(-1), false, failure);
+    assert.equal(lastVersion, 0, "Do not render the incompatible response");
+    await assert.rejects(context.sync.mutate("start"), /Aguarde a conexão/);
+    assert.equal(posts, 1, "Do not send another command using the pre-commit state");
+    await poll();
+    assert.equal(lastVersion, 1, "Reconciliation shows the server's accepted action");
+    assert.equal(connectionStates.at(-1), true);
+    assert.equal(posts, 1, "A read recovers the action without resending it");
+  }
+});

@@ -92,7 +92,31 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
     let version = 1;
     for (const category of ["eco", "confort", "executive", "navegator"]) {
       await passenger.page.locator(`input[name="category"][value="${category}"]`).check();
-      await click(passenger.page, "start"); version++;
+      if (category === "eco") {
+        // The action commits, but the HTTP-success body arrives truncated. Hold reads
+        // long enough to prove the page blocks commands before reconciliation.
+        let releaseReads, posts = 0;
+        const gate = new Promise(resolve => { releaseReads = resolve; });
+        const truncateReply = async route => {
+          if (route.request().method() === "POST") { posts++; await route.fetch(); await route.fulfill({ status: 200, contentType: "application/json", body: "{" }); return; }
+          await gate; await route.continue();
+        };
+        await passenger.page.route(base + "/api/auth-lab/room", truncateReply);
+        try {
+          await click(passenger.page, "start"); version++;
+          await passenger.page.waitForFunction(() => document.getElementById("error").textContent.includes("Resposta da ação não confirmada"));
+          assert.equal(await passenger.page.locator("#start").isEnabled(), false);
+          assert.equal(posts, 1, "Unreadable HTTP-success response is not retried as another command");
+          await text(driver.page, "phase", "Uma nova oferta fictícia");
+          await text(central.page, "version", "Versão " + version);
+          assert.equal(await central.page.locator("#events li").count(), version);
+          releaseReads();
+          await text(passenger.page, "phase", "Aguardando aceite fictício");
+          await enabled(passenger.page, "cancel");
+          assert.equal(await passenger.page.locator("#error").textContent(), "");
+          assert.equal(posts, 1, "Polling recovers the committed action without a duplicate POST");
+        } finally { releaseReads(); await passenger.page.unroute(base + "/api/auth-lab/room", truncateReply); }
+      } else { await click(passenger.page, "start"); version++; }
       await text(driver.page, "phase", "Uma nova oferta fictícia");
       await text(central.page, "version", "Versão " + version);
       if (category === "eco") {
@@ -225,6 +249,7 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
     console.log("PASS: Chromium lost-response recovery reuses the exact request key/body after server commit; one event only. Injected offer-clock expiry removes acceptance and appears as a system event across all views.");
     console.log("PASS: passenger reload requires login and resumes the existing journey without events; driver approval withdrawal and Central admin-role withdrawal clear live trip/history views. Fixture reauthorization requires fresh form login and Central MFA; no extra journey events.");
     console.log("PASS: disconnected passenger and driver controls are disabled; validated polling resumes commands after reconnection, including same-version recovery, without journey events.");
+    console.log("PASS: truncated HTTP-success response after committed request disables further commands; a valid read recovers the existing offer with one POST and one event only.");
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
