@@ -42,7 +42,9 @@ test("controlled restart preserves ownership, version, expiry and duplicate rece
     const { roomId } = (await call("passenger")).data;
     const action = (role, action, version, extra = {}) => ({ roomId, role, action, version, requestKey: crypto.randomUUID(), ...extra });
     assert.equal((await call("driver", action("driver", "availability", 0, { available: true, category: "x".repeat(600) }))).status, 400);
+    assert.equal((await call("driver", action("driver", "availability", 0, { available: true, category: "unrelated-text" }))).status, 400);
     await call("driver", action("driver", "availability", 0, { available: true }));
+    assert.equal((await call("passenger", action("passenger", "start", 1, { category: "eco", available: "unrelated-text" }))).status, 400);
     const start = action("passenger", "start", 1, { category: "eco" });
     const before = (await call("passenger", start)).data;
     await close(); await open();

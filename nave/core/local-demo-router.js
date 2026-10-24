@@ -83,6 +83,7 @@ function createLocalDemoRouter({ authenticated = false, requireUser, clock = Dat
     const b = req.body;
     if (!req.is("application/json") || !b || Array.isArray(b) || Object.keys(b).some(k => !["roomId", "role", "action", "version", "category", "available", ...(authenticated ? ["requestKey"] : [])].includes(k)) || !["passenger", "driver"].includes(b.role) || !Number.isSafeInteger(b.version)) return res.sendStatus(400);
     if (authenticated && b.role !== req.labActor.role) return res.sendStatus(403);
+    if (authenticated && (Object.hasOwn(b, "category") && !["eco", "confort", "executive", "navegator"].includes(b.category) || Object.hasOwn(b, "available") && typeof b.available !== "boolean")) return res.sendStatus(400);
     let receiptKey, fingerprint;
     const now = clock();
     try { expire(now); } catch (_) { return res.sendStatus(503); }
