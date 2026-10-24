@@ -3,14 +3,14 @@
   const el = id => document.getElementById(id);
   const shared = typeof NaveLocalSync !== "undefined" && NaveLocalSync.enabled;
   const money = cents => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
-  let available = false, busy = false, journey = null, declined = false, pilot = null;
+  let available = false, busy = false, journey = null, declined = false, pilot = null, sharedReady = false;
   const next = { driver_to_pickup: ["arrive", "Simular chegada ao embarque"], at_pickup: ["board", "Confirmar embarque fictício"], in_trip: ["complete", "Finalizar simulação"] };
   const titles = { offer_pending: "Uma nova oferta fictícia", driver_to_pickup: "A caminho do embarque · teste", at_pickup: "No ponto de embarque · teste", in_trip: "Percurso fictício em andamento", completed: "Demonstração concluída", cancelled: "Solicitação fictícia encerrada", no_driver: "Sem piloto fictício elegível" };
   function render() {
     const active = journey && !declined && !["completed", "no_driver", "cancelled"].includes(journey.phase);
     el("availability").textContent = available ? "Disponível na demonstração" : "Pausado na demonstração";
     el("toggle").textContent = available ? "Pausar demonstração" : "Ficar disponível na demonstração";
-    el("toggle").disabled = busy || Boolean(active);
+    el("toggle").disabled = busy || Boolean(active) || (shared && !sharedReady);
     el("generate").disabled = busy || !available || Boolean(journey);
     el("category").disabled = shared || busy || Boolean(journey);
     el("phase").textContent = declined ? "Oferta recusada nesta tela" : journey ? titles[journey.phase] || "Demonstração encerrada" : "Seu próximo percurso começa aqui";
@@ -29,7 +29,7 @@
     el("advance").hidden = !action;
     el("advance").textContent = action ? action[1] : "Avançar demonstração";
     el("reset").hidden = shared || !journey || Boolean(active);
-    ["accept", "decline", "advance", "reset"].forEach(id => { el(id).disabled = busy; });
+    ["accept", "decline", "advance", "reset"].forEach(id => { el(id).disabled = busy || (shared && !sharedReady); });
     const step = !journey || declined ? -1 : journey.phase === "offer_pending" ? 0 : journey.phase === "driver_to_pickup" ? 1 : ["at_pickup", "in_trip"].includes(journey.phase) ? 2 : journey.phase === "completed" ? 3 : -1;
     document.querySelectorAll("#steps li").forEach((item, index) => item.classList.toggle("active", index <= step));
   }
@@ -65,7 +65,7 @@
     el("generate").closest("section").hidden = true;
     el("toggle").previousElementSibling.textContent = "Disponibilidade compartilhada com a prévia do passageiro nesta máquina. Não coloca um motorista real online.";
     document.querySelector(".progress p:last-child").textContent = "Esta sala é sincronizada apenas nesta máquina. Recusar encerra o pedido fictício; uma nova solicitação começa na tela do passageiro.";
-    NaveLocalSync.connect("driver", snapshot => { available = snapshot.available; journey = snapshot.journey; pilot = journey?.driverId || null; declined = false; render(); });
+    NaveLocalSync.connect("driver", snapshot => { available = snapshot.available; journey = snapshot.journey; pilot = journey?.driverId || null; declined = false; render(); }, connected => { sharedReady = connected; render(); });
   }
   render();
 })();

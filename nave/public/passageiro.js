@@ -23,9 +23,9 @@
     byId("message").textContent = journey ? journey.message : "Escolha uma categoria e conheça o fluxo de uma viagem fictícia.";
     if (shared && !journey) byId("message").textContent = sharedAvailable ? "Motorista fictício disponível. Inicie uma solicitação para a outra tela receber a oferta." : "Aguardando o motorista ativar a disponibilidade na outra tela.";
     byId("cancel").hidden = !journey || !["offer_pending", "driver_to_pickup", "at_pickup"].includes(journey.phase);
-    byId("cancel").disabled = busy;
+    byId("cancel").disabled = busy || (shared && !sharedReady);
     byId("reset").hidden = !journey;
-    byId("reset").disabled = busy || (shared && Boolean(active));
+    byId("reset").disabled = busy || (shared && (!sharedReady || Boolean(active)));
     byId("driver").hidden = !active;
     byId("driver-name").textContent = "Motorista de demonstração · " + (journey?.driverId || "");
     byId("eta").textContent = journey?.phase === "at_pickup" ? "Aguardando embarque fictício" : journey?.phase === "in_trip" ? "Percurso fictício em andamento · 4,3 km" : journey?.etaToPickupSeconds ? Math.ceil(journey.etaToPickupSeconds / 60) + " min fictícios até o embarque" : "Percurso fictício · 4,3 km";
@@ -53,11 +53,11 @@
   if (shared) {
     byId("advance").closest("details").hidden = true;
     NaveLocalSync.connect("passenger", snapshot => {
-      journey = snapshot.journey; sharedReady = true; sharedAvailable = snapshot.available;
+      journey = snapshot.journey; sharedAvailable = snapshot.available;
       if (journey) document.querySelectorAll('input[name="category"]').forEach(input => { input.checked = input.value === journey.categoryCode; });
       render();
       if (!journey) byId("message").textContent = sharedAvailable ? "Motorista fictício disponível. Inicie uma solicitação para a outra tela receber a oferta." : "Aguardando o motorista ativar a disponibilidade na outra tela.";
-    });
+    }, connected => { sharedReady = connected; render(); });
   }
   document.querySelectorAll('input[name="category"]').forEach(input => input.addEventListener("change", render));
   Promise.all(["eco", "confort", "executive", "navegator"].map(async code => {

@@ -146,6 +146,7 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
         assert.equal(await central.page.locator("#events li").count(), historyBeforeReload);
         await passenger.context.setOffline(true);
         await passenger.page.waitForFunction(() => document.getElementById("error").textContent.includes("Conexão local indisponível"));
+        assert.equal(await passenger.page.locator("#cancel").isEnabled(), false, "Offline passenger cannot cancel using stale state");
         await click(driver.page, "advance"); version++;
         await text(central.page, "version", "Versão " + version);
         await passenger.context.setOffline(false);
@@ -154,6 +155,13 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
       if (category === "eco") assert.equal(await passenger.page.locator("#error").textContent(), "");
       await text(driver.page, "phase", "No ponto de embarque · teste");
       if (category === "eco") {
+        await enabled(passenger.page, "cancel");
+        await driver.context.setOffline(true);
+        await driver.page.waitForFunction(() => document.getElementById("error").textContent.includes("Conexão local indisponível"));
+        assert.equal(await driver.page.locator("#advance").isEnabled(), false, "Offline driver cannot board using stale state");
+        await driver.context.setOffline(false);
+        await enabled(driver.page, "advance");
+        assert.equal(await driver.page.locator("#error").textContent(), "");
         const historyBeforeRevocation = await central.page.locator("#events li").count();
         const denied = driver.page.waitForResponse(r => r.url() === base + "/api/auth-lab/room" && r.status() === 403);
         assert.equal((await admin.auth.admin.updateUserById(fixtures.driver.id, { app_metadata: { nave_lab_role: "driver", nave_lab_driver_approved: false } })).error, null);
@@ -216,6 +224,7 @@ test("isolated Chromium contexts exercise real app logins, all categories, recon
     console.log("PASS: real Chromium contexts and form logins, Central MFA, four categories, one successful competing accept, offline recovery, cancellation, refusal, cross-account denial, and logout. Synthetic in-memory rides only; human/device P09 remains separate.");
     console.log("PASS: Chromium lost-response recovery reuses the exact request key/body after server commit; one event only. Injected offer-clock expiry removes acceptance and appears as a system event across all views.");
     console.log("PASS: passenger reload requires login and resumes the existing journey without events; driver approval withdrawal and Central admin-role withdrawal clear live trip/history views. Fixture reauthorization requires fresh form login and Central MFA; no extra journey events.");
+    console.log("PASS: disconnected passenger and driver controls are disabled; validated polling resumes commands after reconnection, including same-version recovery, without journey events.");
   } finally {
     if (browser) await browser.close();
     await new Promise(resolve => server.close(resolve));
