@@ -49,6 +49,7 @@ const NaveLocalSync = (() => {
         try { res = await send(); } catch (error) { if (!authenticated) throw error; res = await send(); }
       } catch (_) { connection(false); connectionFailed = true; throw new Error("Conexão local indisponível. Aguardando reconexão."); }
       if (authenticated && [401, 403].includes(res.status)) { connection(false); current = null; NaveLabSession.clear(); clearInterval(timer); location.reload(); throw new Error("Sessão encerrada ou sem permissão."); }
+      if (res.status >= 500) { connection(false); connectionFailed = true; throw new Error("Resposta da ação não confirmada nesta tela. Consultando o estado antes de liberar novos comandos."); }
       if (!res.ok) { if (res.status === 409) { const data = await res.json().catch(() => null); if (data?.snapshot) apply(data.snapshot); } throw new Error("Ação não disponível. Aguarde a outra tela ou atualize a demonstração."); }
       try { apply(await res.json()); }
       catch (_) { connection(false); connectionFailed = true; throw new Error("Resposta da ação não confirmada nesta tela. Consultando o estado antes de liberar novos comandos."); }

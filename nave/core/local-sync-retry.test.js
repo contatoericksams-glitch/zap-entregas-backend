@@ -1,5 +1,28 @@
 "use strict";
 const { test } = require("node:test"), assert = require("node:assert/strict"), vm = require("node:vm"), fs = require("node:fs"), path = require("node:path");
+for (const authenticated of [false, true]) test("server errors after commit block commands until reconciliation: " + authenticated, async () => {
+  for (const status of [500, 502, 503, 504]) {
+    const source = fs.readFileSync(path.join(__dirname, "../public/local-sync.js"), "utf8");
+    const snapshot = { roomId: "fixture-room", version: 0, testOnly: true, storage: "process-memory", commercialRidesEnabled: false, whatsappSendEnabled: false, paymentsEnabled: false };
+    const node = () => ({ textContent: "", after() {}, append() {} });
+    let connect, poll, posts = 0, lastVersion;
+    const states = [];
+    const context = vm.createContext({ URLSearchParams, AbortSignal, location: { search: authenticated ? "?auth=1" : "?shared=1", reload() {} }, document: { createElement: node, querySelector: node, querySelectorAll: () => [], getElementById: node }, window: { addEventListener() {} }, setInterval(fn) { poll = fn; return 1; }, clearInterval() {}, crypto: { randomUUID: () => "fixture-request-key" }, NaveLabSession: { headers: () => ({ Authorization: "Bearer fixture" }), clear() {}, mount(_role, start) { connect = start(); } }, fetch: async (_url, options) => {
+      if (options.method === "POST") { posts++; snapshot.version++; return { ok: false, status }; }
+      return { ok: true, json: async () => ({ ...snapshot }) };
+    } });
+    vm.runInContext(source + ";globalThis.sync = NaveLocalSync", context);
+    await context.sync.connect("passenger", data => { lastVersion = data.version; }, value => states.push(value)); await connect;
+    await assert.rejects(context.sync.mutate("start"));
+    assert.equal(states.at(-1), false, "HTTP " + status + " can hide an already committed action");
+    await assert.rejects(context.sync.mutate("start"), /Aguarde a conexão/);
+    assert.equal(posts, 1, "Do not repeat an action after uncertain server failure");
+    await poll();
+    assert.equal(lastVersion, 1);
+    assert.equal(states.at(-1), true);
+    assert.equal(posts, 1, "Recover the committed state by reading, without another POST");
+  }
+});
 for (const storage of ["process-memory", "runner-checkpoint"]) test("authenticated client retries uncertain delivery with identical body/key: " + storage, async () => {
   const source = fs.readFileSync(path.join(__dirname, "../public/local-sync.js"), "utf8"), posts = [];
   const snapshot = { roomId: "fixture-room", version: 0, testOnly: true, storage, commercialRidesEnabled: false, whatsappSendEnabled: false, paymentsEnabled: false };
