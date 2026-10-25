@@ -1,5 +1,27 @@
 "use strict";
 const { test } = require("node:test"), assert = require("node:assert/strict"), vm = require("node:vm"), fs = require("node:fs"), path = require("node:path");
+for (const authenticated of [false, true]) test("a pre-command read cannot reconcile an uncertain command: " + authenticated, async () => {
+  const source = fs.readFileSync(path.join(__dirname, "../public/local-sync.js"), "utf8");
+  const snapshot = { roomId: "fixture-room", version: 0, testOnly: true, storage: "process-memory", commercialRidesEnabled: false, whatsappSendEnabled: false, paymentsEnabled: false };
+  const node = () => ({ textContent: "", after() {}, append() {} });
+  let connect, poll, release, readingStarted, reads = 0, posts = 0, lastVersion;
+  const readStarted = new Promise(resolve => { readingStarted = resolve; });
+  const states = [];
+  const context = vm.createContext({ URLSearchParams, AbortSignal, location: { search: authenticated ? "?auth=1" : "?shared=1", reload() {} }, document: { createElement: node, querySelector: node, querySelectorAll: () => [], getElementById: node }, window: { addEventListener() {} }, setInterval(fn) { poll = fn; return 1; }, clearInterval() {}, crypto: { randomUUID: () => "fixture-request-key" }, NaveLabSession: { headers: () => ({ Authorization: "Bearer fixture" }), clear() {}, mount(_role, start) { connect = start(); } }, fetch: async (_url, options) => {
+    if (options.method === "POST") { posts++; snapshot.version++; return { ok: false, status: 503 }; }
+    if (++reads === 2) return { ok: true, json: () => new Promise(resolve => { release = () => resolve({ ...snapshot, version: 0 }); readingStarted(); }) };
+    return { ok: true, json: async () => ({ ...snapshot }) };
+  } });
+  vm.runInContext(source + ";globalThis.sync = NaveLocalSync", context);
+  await context.sync.connect("passenger", data => { lastVersion = data.version; }, value => states.push(value)); await connect;
+  const oldRead = poll(); await readStarted;
+  await assert.rejects(context.sync.mutate("start"));
+  release(); await oldRead;
+  assert.equal(states.at(-1), false, "A read begun before the command cannot confirm its result");
+  await assert.rejects(context.sync.mutate("start"), /Aguarde a conexão/);
+  assert.equal(posts, 1);
+  await poll(); assert.equal(lastVersion, 1); assert.equal(states.at(-1), true); assert.equal(posts, 1);
+});
 for (const authenticated of [false, true]) test("server errors after commit block commands until reconciliation: " + authenticated, async () => {
   for (const status of [500, 502, 503, 504]) {
     const source = fs.readFileSync(path.join(__dirname, "../public/local-sync.js"), "utf8");

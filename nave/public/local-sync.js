@@ -4,7 +4,7 @@ const NaveLocalSync = (() => {
   const enabled = authenticated || new URLSearchParams(location.search).get("shared") === "1";
   const endpoint = authenticated ? "/api/auth-lab/room" : "/api/local-demo";
   const headers = () => authenticated ? NaveLabSession.headers() : {};
-  let current = null, role, receive, onConnection = () => {}, connected = false, pending = false, reading = false, connectionFailed = false, timer;
+  let current = null, role, receive, onConnection = () => {}, connected = false, pending = false, reading = false, connectionFailed = false, timer, mutationGeneration = 0;
   function connection(value) { if (connected !== value) { connected = value; onConnection(value); } }
   function apply(data) {
     if (data.testOnly !== true || !(data.storage === "process-memory" || authenticated && data.storage === "runner-checkpoint") || data.commercialRidesEnabled !== false || data.whatsappSendEnabled !== false || data.paymentsEnabled !== false || !Number.isSafeInteger(data.version)) throw new Error("Resposta incompatível com demonstração local.");
@@ -14,12 +14,14 @@ const NaveLocalSync = (() => {
   async function read() {
     if (pending || reading) return;
     reading = true;
+    const generation = mutationGeneration;
     try {
       const res = await fetch(endpoint, { headers: headers(), cache: "no-store", signal: AbortSignal.timeout(5000) });
+      if (generation !== mutationGeneration) return;
       if (authenticated && [401, 403].includes(res.status)) { connection(false); current = null; NaveLabSession.clear(); clearInterval(timer); location.reload(); return; }
       if (!res.ok) throw new Error("Servidor local indisponível. Use o servidor de prévia, sem publicar este modo.");
-      const data = await res.json(); if (!pending) { apply(data); connection(true); if (connectionFailed) { document.getElementById("error").textContent = ""; connectionFailed = false; } }
-    } catch (_) { connection(false); connectionFailed = true; document.getElementById("error").textContent = "Conexão local indisponível. Aguardando reconexão."; }
+      const data = await res.json(); if (!pending && generation === mutationGeneration) { apply(data); connection(true); if (connectionFailed) { document.getElementById("error").textContent = ""; connectionFailed = false; } }
+    } catch (_) { if (generation === mutationGeneration) { connection(false); connectionFailed = true; document.getElementById("error").textContent = "Conexão local indisponível. Aguardando reconexão."; } }
     finally { reading = false; }
   }
   return { enabled, async connect(label, listener, connectionListener = () => {}) {
@@ -41,6 +43,7 @@ const NaveLocalSync = (() => {
     if (role === "observer") throw new Error("A Central local é somente de leitura.");
     if (!current || !connected || pending) throw new Error("Aguarde a conexão com a demonstração local.");
     pending = true;
+    mutationGeneration++;
     try {
       const body = JSON.stringify({ role, action, roomId: current.roomId, version: current.version, ...extra, ...(authenticated ? { requestKey: crypto.randomUUID() } : {}) });
       const send = () => fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", ...headers() }, body, signal: AbortSignal.timeout(5000) });
