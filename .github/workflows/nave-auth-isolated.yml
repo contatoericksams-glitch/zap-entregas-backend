@@ -21,7 +21,11 @@ jobs:
           npm ci --prefix nave --ignore-scripts --no-audit --no-fund
           npm install --prefix "$RUNNER_TEMP/nave-tools" --no-save --no-package-lock --no-audit --no-fund supabase@2.122.0
       - name: Install pinned Chromium only in the ephemeral runner
-        run: node nave/node_modules/playwright/cli.js install --with-deps chromium
+        timeout-minutes: 5
+        # ubuntu-24.04 already supplies the headless runtime libraries. Avoid
+        # apt font upgrades blocking the app checks; launch still fails if a
+        # required library is missing. Tests use the default headless shell.
+        run: node nave/node_modules/playwright/cli.js install --only-shell chromium
       - name: Build temporary unlinked Supabase project
         shell: bash
         run: |
