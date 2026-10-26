@@ -93,7 +93,7 @@ begin
   order by (r.phase not in ('completed','cancelled')) desc,r.updated_at desc limit 50
  ) select jsonb_build_object(
  'member',to_jsonb(m),'testOnly',true,
- 'rides',coalesce((select jsonb_agg(to_jsonb(v)||jsonb_build_object('passenger_name',pm.name,'driver_name',dm.name)) from visible v join nave_assisted.members pm on pm.id=v.passenger_id left join nave_assisted.members dm on dm.id=v.driver_id),'[]'::jsonb),
+ 'rides',coalesce((select jsonb_agg(to_jsonb(v)||jsonb_build_object('passenger_name',pm.name,'driver_name',dm.name) order by (v.phase not in ('completed','cancelled')) desc,v.updated_at desc,v.id) from visible v join nave_assisted.members pm on pm.id=v.passenger_id left join nave_assisted.members dm on dm.id=v.driver_id),'[]'::jsonb),
  'events',coalesce((select jsonb_agg(to_jsonb(e)) from (select e.* from nave_assisted.events e join visible v on v.id=e.ride_id order by e.id desc limit 500) e),'[]'::jsonb),
  'drivers',case when m.role='admin' then coalesce((select jsonb_agg(to_jsonb(d)) from nave_assisted.members d where d.role='driver'),'[]'::jsonb) else '[]'::jsonb end
  ) into result;

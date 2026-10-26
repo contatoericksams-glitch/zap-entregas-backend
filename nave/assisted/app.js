@@ -138,6 +138,7 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
       const c = client(), jar = cookies(req);
       const session = await c.auth.setSession({ access_token: jar.nave_access, refresh_token: jar.nave_refresh });
       if (session.error) return res.sendStatus(401);
+      saveSession(res, session.data.session);
       const { error } = await c.auth.updateUser({ password: req.body.password });
       if (error) return publicError(res, 400, "Não foi possível atualizar a senha.");
       res.json({ ok: true });

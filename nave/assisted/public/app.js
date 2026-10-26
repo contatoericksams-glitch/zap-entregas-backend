@@ -1,7 +1,7 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
-  let state = null, busy = false, connected = false, reading = false, generation = 0;
+  let state = null, busy = false, connected = false, reading = false, generation = 0, readFinished = Promise.resolve();
   const phases = { requested: "Aguardando a Central", offered: "Aguardando aceite", accepted: "Motorista a caminho", arrived: "Motorista no embarque", in_trip: "Em andamento", completed: "Concluída", cancelled: "Cancelada" };
   const terminal = r => ["completed", "cancelled"].includes(r.phase);
   function message(text) { $("message").textContent = text; }
@@ -62,8 +62,10 @@
     disable();
   }
   async function refresh(force = false) {
-    if (reading || busy && !force) return false;
+    if (reading) { if (force) { await readFinished; return refresh(true); } return false; }
+    if (busy && !force) return false;
     reading = true; const currentGeneration = generation;
+    let finishRead; readFinished = new Promise(resolve => { finishRead = resolve; });
     try {
       const data = await request("snapshot");
       if (generation !== currentGeneration) return false;
@@ -74,7 +76,7 @@
       connected = false; $("connection").textContent = "Sem confirmação do servidor. Comandos bloqueados até reconectar."; disable();
       if ([401, 403].includes(error.status)) { clear(); if (error.status === 403) message(error.message); }
       return false;
-    } finally { reading = false; }
+    } finally { reading = false; finishRead(); }
   }
   async function command(action, ride = null, data = {}) {
     if (busy || !connected) return;
@@ -84,7 +86,7 @@
       if (result.testOnly !== true) throw new Error("Resposta incompatível.");
       message("Ação salva. Atualizando a solicitação.");
     } catch (error) { message(error.message + " Confira o estado atualizado antes de agir novamente."); }
-    finally { busy = false; await refresh(); }
+    finally { busy = false; await refresh(true); }
   }
   for (const id of ["login", "signup", "recover", "password"]) $(id).addEventListener("submit", async event => {
     event.preventDefault(); if (busy) return; busy = true; generation++; disable();
@@ -94,7 +96,7 @@
     form.querySelectorAll('input[type="password"],input[name="code"]').forEach(input => { input.value = ""; });
     try { const result = await request(id, values, false); message(result.message || (id === "recover" ? "Se houver uma conta elegível, você receberá um email. Abra-o neste navegador." : id === "password" ? "Senha atualizada." : "Entrada confirmada.")); }
     catch (error) { message(error.message); }
-    finally { values.password = ""; values.code = ""; busy = false; b.disabled = false; await refresh(); }
+    finally { values.password = ""; values.code = ""; busy = false; b.disabled = false; await refresh(true); }
   });
   $("booking").addEventListener("submit", event => { event.preventDefault(); command("start", null, Object.fromEntries(new FormData(event.currentTarget))); });
   $("toggle-availability").addEventListener("click", () => command("availability", null, { available: !state.member.available }));

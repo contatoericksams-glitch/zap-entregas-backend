@@ -144,12 +144,14 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     // Role claims editable by a user do not create a Central membership.
     assert.equal((await userClient.auth.updateUser({ data: { nave_lab_role: "admin", role: "admin", approved: true } })).error, null);
     assert.equal((await snap("passenger")).member.role, "passenger");
+    console.log("PASS: assisted API signup/PKCE confirmation, role isolation, driver approval, durable multiple requests, idempotency/concurrency, expiry and separate-process restart.");
 
     browser = await chromium.launch({ headless: true });
     const views = {};
     for (const role of ["passenger", "driver", "central"]) {
       const context = await browser.newContext({ viewport: { width: role === "central" ? 1280 : 390, height: 844 } });
       const page = await context.newPage(); await page.goto(origin + "/assistido/");
+      page.on("pageerror", error => console.log("Assisted UI script error: " + error.message));
       await page.locator('#login input[name="email"]').fill(role === "central" ? adminEmail : roles[role].email);
       await page.locator('#login input[name="password"]').fill(password);
       if (role === "central") await page.locator('#login input[name="code"]').fill(fixtureTotp(secret));
@@ -159,7 +161,7 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     await p.locator('#booking input[name="pickup"]').fill("Embarque livre pelo navegador");
     await p.locator('#booking input[name="destination"]').fill("Destino livre pelo navegador");
     await p.locator("#booking button").click();
-    await p.waitForFunction(() => document.querySelector("#rides .phase")?.textContent === "Aguardando a Central");
+    await p.waitForFunction(() => document.querySelector("#rides .phase")?.textContent === "Aguardando a Central").catch(async error => { console.log("Assisted booking status: " + await p.locator("#message").textContent()); console.log("Assisted phases: " + JSON.stringify(await p.locator("#rides .phase").allTextContents())); throw error; });
     const current = (await snap("passenger")).rides.find(r => r.phase === "requested");
     const card = c.locator('[data-ride-id="' + current.id + '"]');
     await card.locator("select").selectOption(roles.driver.id); await card.getByRole("button", { name: "Enviar oferta", exact: true }).click();
