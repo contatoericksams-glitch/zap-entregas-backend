@@ -1,12 +1,13 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
-  let state = null, busy = false, connected = false, reading = false, generation = 0, readFinished = Promise.resolve();
+  let state = null, busy = false, connected = false, reading = false, generation = 0, readFinished = Promise.resolve(), mfaFactor = null;
+  function clearMfa() { mfaFactor = null; $("mfa-setup").hidden = true; $("mfa-qr").removeAttribute("src"); $("mfa-secret").textContent = ""; $("mfa-verify").reset(); }
   const phases = { requested: "Aguardando a Central", offered: "Aguardando aceite", accepted: "Motorista a caminho", arrived: "Motorista no embarque", in_trip: "Em andamento", completed: "Concluída", cancelled: "Cancelada" };
   const terminal = r => ["completed", "cancelled"].includes(r.phase);
   function message(text) { $("message").textContent = text; }
   function disable() { document.querySelectorAll(".command").forEach(b => { b.disabled = busy || !connected; }); }
-  function clear() { state = null; connected = false; generation++; $("rides").replaceChildren(); $("drivers").replaceChildren(); $("identity").textContent = ""; $("account").hidden = true; $("auth").hidden = false; }
+  function clear() { clearMfa(); state = null; connected = false; generation++; $("rides").replaceChildren(); $("drivers").replaceChildren(); $("identity").textContent = ""; $("account").hidden = true; $("auth").hidden = false; }
   async function request(path, body, retry = true) {
     const response = await fetch("/api/assisted/" + path, { method: body === undefined ? "GET" : "POST", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (response.status === 401 && retry && !["login", "signup", "refresh", "recover"].includes(path)) {
@@ -97,6 +98,25 @@
     try { const result = await request(id, values, false); message(result.message || (id === "recover" ? "Se houver uma conta elegível, você receberá um email. Abra-o neste navegador." : id === "password" ? "Senha atualizada." : "Entrada confirmada.")); }
     catch (error) { message(error.message); }
     finally { values.password = ""; values.code = ""; busy = false; b.disabled = false; await refresh(true); }
+  });
+  $("mfa-enroll").addEventListener("click", async () => {
+    if (busy || !connected) return;
+    busy = true; generation++; disable(); $("mfa-enroll").disabled = true; clearMfa();
+    try {
+      const result = await request("mfa/enroll", {}, false);
+      if (typeof result.qr !== "string" || !result.qr.startsWith("data:image/svg+xml;") || typeof result.secret !== "string" || typeof result.factorId !== "string") throw new Error("Configuração incompleta.");
+      mfaFactor = result.factorId; $("mfa-qr").src = result.qr; $("mfa-secret").textContent = result.secret; $("mfa-setup").hidden = false;
+      message("Adicione esta conta ao seu autenticador e confirme o código de seis dígitos.");
+    } catch (error) { message(error.message); }
+    finally { busy = false; $("mfa-enroll").disabled = false; await refresh(true); }
+  });
+  $("mfa-verify").addEventListener("submit", async event => {
+    event.preventDefault(); if (busy || !connected || !mfaFactor) return;
+    busy = true; generation++; disable(); const b = event.currentTarget.querySelector("button"); b.disabled = true;
+    const code = event.currentTarget.elements.code.value; event.currentTarget.reset();
+    try { const result = await request("mfa/verify", { factorId: mfaFactor, code }, false); clearMfa(); message(result.message); }
+    catch (error) { message(error.message); }
+    finally { busy = false; b.disabled = false; await refresh(true); }
   });
   $("booking").addEventListener("submit", event => { event.preventDefault(); command("start", null, Object.fromEntries(new FormData(event.currentTarget))); });
   $("toggle-availability").addEventListener("click", () => command("availability", null, { available: !state.member.available }));

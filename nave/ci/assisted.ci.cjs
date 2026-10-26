@@ -66,6 +66,7 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     assert.deepEqual({ ...securityBefore.data, contact_rows: 0 }, { rls: true, anonymous_execute: false, authenticated_execute: false, direct_member_access: false, contact_rows: 0 });
     await start();
     assert.equal((await call("guest", "/api/assisted/snapshot")).status, 401);
+    assert.equal((await call("guest", "/api/assisted/mfa/enroll", {})).status, 401);
     assert.equal((await call("guest", "/api/assisted/login", {}, { Origin: "https://untrusted.invalid" })).status, 403);
     for (const role of ["passenger", "driver", "other"]) {
       const email = `assisted-${crypto.randomUUID()}@example.invalid`, name = "Pessoa " + role;
@@ -83,11 +84,17 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     const adminEmail = `assisted-admin-${crypto.randomUUID()}@example.invalid`;
     const created = await admin.auth.admin.createUser({ email: adminEmail, password, email_confirm: true }); assert.equal(created.error, null);
     assert.equal((await admin.rpc("nave_assisted_enroll", { p_actor: created.data.user.id, p_name: "Central de teste", p_driver: false })).error, null);
+    await ok("central", "/api/assisted/login", { email: adminEmail, password });
+    const enrolled = await ok("central", "/api/assisted/mfa/enroll", {});
+    assert.ok(enrolled.qr.startsWith("data:image/svg+xml;"));
+    const secret = enrolled.secret;
+    assert.equal((await call("other", "/api/assisted/mfa/verify", { factorId: enrolled.factorId, code: fixtureTotp(secret) })).status, 403);
+    assert.equal((await call("central", "/api/assisted/mfa/verify", { factorId: enrolled.factorId, code: "wrong" })).status, 400);
+    const verified = await ok("central", "/api/assisted/mfa/verify", { factorId: enrolled.factorId, code: fixtureTotp(secret) });
+    assert.equal(JSON.stringify(verified).includes("access_token"), false);
+    assert.equal((await snap("central")).member.role, "passenger", "MFA setup cannot grant Central access");
+    assert.equal((await call("central", "/api/assisted/mfa/enroll", {})).status, 409);
     assert.equal((await admin.rpc("nave_assisted_fixture_admin", { p_actor: created.data.user.id })).error, null);
-    const centralClient = createClient(url, key, options); assert.equal((await centralClient.auth.signInWithPassword({ email: adminEmail, password })).error, null);
-    const enrolled = await centralClient.auth.mfa.enroll({ factorType: "totp" }); assert.equal(enrolled.error, null);
-    const secret = enrolled.data.totp.secret;
-    assert.equal((await centralClient.auth.mfa.challengeAndVerify({ factorId: enrolled.data.id, code: fixtureTotp(secret) })).error, null);
     await ok("central", "/api/assisted/login", { email: adminEmail, password });
     assert.equal((await call("central", "/api/assisted/snapshot")).status, 403);
     await ok("central", "/api/assisted/login", { email: adminEmail, password, code: fixtureTotp(secret) });
@@ -181,6 +188,21 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     await card.getByText("Concluída", { exact: true }).waitFor({ state: "visible" });
     assert.equal((await snap("passenger")).events.filter(e => e.ride_id === current.id).length, 8);
     for (const { page } of Object.values(views)) assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
+    const setupContext = await browser.newContext(), setupPage = await setupContext.newPage();
+    await setupPage.goto(origin + "/assistido/");
+    await setupPage.locator('#login input[name="email"]').fill(roles.other.email);
+    await setupPage.locator('#login input[name="password"]').fill(password);
+    await setupPage.locator("#login button").click(); await setupPage.locator("#account").waitFor({ state: "visible" });
+    await setupPage.getByText("Configurar autenticador", { exact: true }).click();
+    await setupPage.locator("#mfa-enroll").click(); await setupPage.locator("#mfa-setup").waitFor({ state: "visible" });
+    const setupSecret = await setupPage.locator("#mfa-secret").textContent();
+    assert.ok(setupSecret.length >= 16);
+    await setupPage.locator('#mfa-verify input[name="code"]').fill(fixtureTotp(setupSecret));
+    await setupPage.locator("#mfa-verify button").click(); await setupPage.locator("#mfa-setup").waitFor({ state: "hidden" });
+    assert.equal(await setupPage.locator("#mfa-secret").textContent(), "");
+    assert.equal(await setupPage.locator("#mfa-qr").getAttribute("src"), null);
+    assert.equal(await setupPage.evaluate(() => localStorage.length + sessionStorage.length), 0);
+    await setupContext.close();
     await p.locator("#logout").click(); await p.locator("#auth").waitFor({ state: "visible" }); assert.equal(await p.locator("#rides article").count(), 0);
     await browser.close(); browser = null;
 

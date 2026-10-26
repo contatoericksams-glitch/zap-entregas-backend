@@ -103,6 +103,46 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
       await enroll(data.user); saveSession(res, data.session); res.json({ ok: true });
     } catch (_) { publicError(res, 503, "Entrada temporariamente indisponível."); }
   });
+  async function accountClient(req, res) {
+    const jar = cookies(req), c = client();
+    const current = await c.auth.setSession({ access_token: req.accessToken, refresh_token: jar.nave_refresh || "" });
+    if (current.error || current.data?.user?.id !== req.actor.id) return null;
+    saveSession(res, current.data.session);
+    return c;
+  }
+  app.post("/api/assisted/mfa/enroll", throttle, identity, async (req, res) => {
+    if (!shape(req.body, []) || Object.keys(req.body).length) return res.sendStatus(400);
+    try {
+      const c = await accountClient(req, res);
+      if (!c) return res.sendStatus(401);
+      const factors = await c.auth.mfa.listFactors();
+      if (factors.error) return publicError(res, 503, "Não foi possível consultar o autenticador.");
+      // Never replace a verified factor or weaken the user's existing protection.
+      if (factors.data.all.some(f => f.status === "verified")) return publicError(res, 409, "Esta conta já possui autenticador. Use seu código ao entrar.");
+      // Restart only unfinished setup owned by the current authenticated user.
+      for (const f of factors.data.all.filter(f => f.factor_type === "totp" && f.status === "unverified")) {
+        const removed = await c.auth.mfa.unenroll({ factorId: f.id });
+        if (removed.error) return publicError(res, 503, "Não foi possível reiniciar a configuração.");
+      }
+      const result = await c.auth.mfa.enroll({ factorType: "totp", friendlyName: "NAVE Testes" });
+      if (result.error || !result.data?.totp) return publicError(res, 503, "Não foi possível preparar o autenticador.");
+      res.json({ factorId: result.data.id, qr: result.data.totp.qr_code, secret: result.data.totp.secret });
+    } catch (_) { publicError(res, 503, "Configuração temporariamente indisponível."); }
+  });
+  app.post("/api/assisted/mfa/verify", throttle, identity, async (req, res) => {
+    const b = req.body;
+    if (!shape(b, ["factorId", "code"]) || typeof b.factorId !== "string" || !/^[0-9a-f-]{36}$/i.test(b.factorId) || typeof b.code !== "string" || !/^[0-9]{6}$/.test(b.code)) return res.sendStatus(400);
+    try {
+      const c = await accountClient(req, res);
+      if (!c) return res.sendStatus(401);
+      const factors = await c.auth.mfa.listFactors();
+      if (factors.error || !factors.data.all.some(f => f.id === b.factorId && f.factor_type === "totp" && f.status === "unverified")) return publicError(res, 403, "Configuração inválida. Reinicie a configuração nesta conta.");
+      const result = await c.auth.mfa.challengeAndVerify({ factorId: b.factorId, code: b.code });
+      if (result.error) return publicError(res, 403, "Código inválido. Confira o código atual no autenticador.");
+      saveSession(res, result.data);
+      res.json({ ok: true, message: "Autenticador ativado. A liberação da Central depende do operador responsável." });
+    } catch (_) { publicError(res, 503, "Não foi possível confirmar o autenticador."); }
+  });
   app.post("/api/assisted/recover", throttle, async (req, res) => {
     if (!shape(req.body, ["email"]) || typeof req.body.email !== "string" || req.body.email.length > 254) return res.sendStatus(400);
     try { await flowClient(req, res).auth.resetPasswordForEmail(req.body.email.trim(), { redirectTo: origin + "/assistido/confirm" }); res.status(202).json({ accepted: true }); }
