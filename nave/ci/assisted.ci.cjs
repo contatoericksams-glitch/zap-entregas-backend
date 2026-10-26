@@ -161,8 +161,17 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
       page.on("pageerror", error => console.log("Assisted UI script error: " + error.message));
       await page.locator('#login input[name="email"]').fill(role === "central" ? adminEmail : roles[role].email);
       await page.locator('#login input[name="password"]').fill(password);
-      if (role === "central") await page.locator('#login input[name="code"]').fill(fixtureTotp(secret));
+      assert.equal(await page.locator('#login input[name="code"]').isVisible(), false);
+      assert.equal(await page.locator('#login input[name="code"]').isDisabled(), true);
+      if (role === "passenger") {
+        await page.locator("#central-login summary").click(); await page.locator('#login input[name="code"]').fill("111111");
+        await page.locator("#central-login summary").click();
+        await page.waitForFunction(() => document.querySelector('#login input[name="code"]').disabled);
+        assert.equal(await page.locator('#login input[name="code"]').inputValue(), "");
+      }
+      if (role === "central") { await page.locator("#central-login summary").click(); await page.locator('#login input[name="code"]').fill(fixtureTotp(secret)); }
       await page.locator("#login button").click(); await page.locator("#account").waitFor({ state: "visible" }); views[role] = { context, page };
+      assert.equal(await page.locator("#central-security").isVisible(), role === "central");
     }
     const p = views.passenger.page, d = views.driver.page, c = views.central.page;
     await p.locator('#booking input[name="pickup"]').fill("Embarque livre pelo navegador");
@@ -192,8 +201,9 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     await setupPage.goto(origin + "/assistido/");
     await setupPage.locator('#login input[name="email"]').fill(roles.other.email);
     await setupPage.locator('#login input[name="password"]').fill(password);
+    await setupPage.locator("#central-login summary").click();
     await setupPage.locator("#login button").click(); await setupPage.locator("#account").waitFor({ state: "visible" });
-    await setupPage.getByText("Configurar autenticador", { exact: true }).click();
+    await setupPage.getByText("Configurar autenticador da Central", { exact: true }).click();
     await setupPage.locator("#mfa-enroll").click(); await setupPage.locator("#mfa-setup").waitFor({ state: "visible" });
     const setupSecret = await setupPage.locator("#mfa-secret").textContent();
     assert.ok(setupSecret.length >= 16);

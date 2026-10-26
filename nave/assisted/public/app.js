@@ -1,13 +1,13 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
-  let state = null, busy = false, connected = false, reading = false, generation = 0, readFinished = Promise.resolve(), mfaFactor = null;
+  let state = null, busy = false, connected = false, reading = false, generation = 0, readFinished = Promise.resolve(), mfaFactor = null, centralMode = false;
   function clearMfa() { mfaFactor = null; $("mfa-setup").hidden = true; $("mfa-qr").removeAttribute("src"); $("mfa-secret").textContent = ""; $("mfa-verify").reset(); }
   const phases = { requested: "Aguardando a Central", offered: "Aguardando aceite", accepted: "Motorista a caminho", arrived: "Motorista no embarque", in_trip: "Em andamento", completed: "Concluída", cancelled: "Cancelada" };
   const terminal = r => ["completed", "cancelled"].includes(r.phase);
   function message(text) { $("message").textContent = text; }
   function disable() { document.querySelectorAll(".command").forEach(b => { b.disabled = busy || !connected; }); }
-  function clear() { clearMfa(); state = null; connected = false; generation++; $("rides").replaceChildren(); $("drivers").replaceChildren(); $("identity").textContent = ""; $("account").hidden = true; $("auth").hidden = false; }
+  function clear() { clearMfa(); centralMode = false; $("central-login").open = false; $("central-security").hidden = true; state = null; connected = false; generation++; $("rides").replaceChildren(); $("drivers").replaceChildren(); $("identity").textContent = ""; $("account").hidden = true; $("auth").hidden = false; }
   async function request(path, body, retry = true) {
     const response = await fetch("/api/assisted/" + path, { method: body === undefined ? "GET" : "POST", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (response.status === 401 && retry && !["login", "signup", "refresh", "recover"].includes(path)) {
@@ -34,6 +34,7 @@
     $("availability-label").textContent = m.available ? "Disponível para receber ofertas da Central." : "Indisponível.";
     $("toggle-availability").textContent = m.available ? "Ficar indisponível" : "Ficar disponível";
     $("drivers-panel").hidden = m.role !== "admin";
+    $("central-security").hidden = m.role !== "admin" && !centralMode;
     $("drivers").replaceChildren();
     for (const d of state.drivers) {
       const row = text("div", d.name + " · " + (!d.approved ? "Aguardando aprovação" : d.available ? "Disponível" : "Indisponível"), "driver-row");
@@ -93,11 +94,15 @@
     event.preventDefault(); if (busy) return; busy = true; generation++; disable();
     const form = event.currentTarget, b = form.querySelector("button"), values = Object.fromEntries(new FormData(form)); b.disabled = true;
     if (id === "signup") { values.driver = values.kind === "driver"; delete values.kind; }
-    if (id === "login" && !values.code) delete values.code;
+    if (id === "login") { centralMode = $("central-login").open; if (!centralMode || !values.code) delete values.code; }
     form.querySelectorAll('input[type="password"],input[name="code"]').forEach(input => { input.value = ""; });
     try { const result = await request(id, values, false); message(result.message || (id === "recover" ? "Se houver uma conta elegível, você receberá um email. Abra-o neste navegador." : id === "password" ? "Senha atualizada." : "Entrada confirmada.")); }
     catch (error) { message(error.message); }
     finally { values.password = ""; values.code = ""; busy = false; b.disabled = false; await refresh(true); }
+  });
+  $("central-login").addEventListener("toggle", () => {
+    const input = $("login").elements.code; input.disabled = !$("central-login").open;
+    if (input.disabled) input.value = "";
   });
   $("mfa-enroll").addEventListener("click", async () => {
     if (busy || !connected) return;
