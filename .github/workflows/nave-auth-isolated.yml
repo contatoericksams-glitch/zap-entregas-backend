@@ -39,7 +39,7 @@ jobs:
           "$CLI" migration new channel_link_ci --workdir "$LAB"
           MIGRATION=$(find "$LAB/supabase/migrations" -name '*_channel_link_ci.sql' -print -quit)
           test -n "$MIGRATION"
-          cat nave/ci/channel-link-fixture.sql nave/core/migrations/009_channel_link_otp_DRAFT.sql nave/assisted/schema.sql nave/ci/assisted-fixture.sql > "$MIGRATION"
+          cat nave/ci/channel-link-fixture.sql nave/core/migrations/009_channel_link_otp_DRAFT.sql nave/assisted/schema.sql nave/assisted/supabase/migrations/*_assisted_route_preview.sql nave/ci/assisted-fixture.sql > "$MIGRATION"
           "$CLI" start --workdir "$LAB" --exclude realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor > "$RUNNER_TEMP/nave-start.log" 2>&1
           "$CLI" db reset --local --no-seed --workdir "$LAB" --yes > "$RUNNER_TEMP/nave-reset.log" 2>&1
           umask 077

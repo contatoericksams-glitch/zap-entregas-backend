@@ -1,7 +1,8 @@
 "use strict";
 const express = require("express"), path = require("node:path");
 const { createClient } = require("@supabase/supabase-js");
-const { createHash } = require("node:crypto");
+const { createHash, randomUUID } = require("node:crypto");
+const { createRouting } = require("./routing");
 const authOptions = { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, flowType: "pkce" };
 const publicError = (res, status, message) => res.status(status).json({ error: message });
 function cookies(req) {
@@ -13,11 +14,12 @@ function cookies(req) {
   return result;
 }
 function shape(body, keys) { return body && typeof body === "object" && !Array.isArray(body) && Object.keys(body).every(k => keys.includes(k)); }
-function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient = createClient }) {
+function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient = createClient, routePlanner = createRouting(), mapEnabled = true }) {
   const target = new URL(origin), database = new URL(url);
   const loopback = target.protocol === "http:" && target.hostname === "127.0.0.1";
   if ((!loopback && target.protocol !== "https:") || target.origin !== origin || target.username || target.password || (!url.startsWith("http://127.0.0.1:") && database.protocol !== "https:") || !publishableKey || !serviceKey || publishableKey === serviceKey) throw new Error("Invalid assisted environment");
   const app = express(), secure = !loopback;
+  const routeQuotes = new Map();
   app.disable("x-powered-by");
   const cookieOptions = { httpOnly: true, secure, sameSite: "strict", path: "/" };
   const admin = makeClient(url, serviceKey, { auth: authOptions });
@@ -40,7 +42,7 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
     return makeClient(url, publishableKey, { auth: options });
   }
   app.use((req, res, next) => {
-    res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; form-action 'self'; base-uri 'none'" });
+    res.set({ "Cache-Control": "no-store", "Referrer-Policy": "strict-origin", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: https://tile.openstreetmap.org; frame-ancestors 'none'; form-action 'self'; base-uri 'none'" });
     if (req.get("host") !== target.host || (loopback && !["127.0.0.1", "::ffff:127.0.0.1", "::1"].includes(req.socket.remoteAddress))) return res.sendStatus(403);
     if (!["GET", "HEAD"].includes(req.method) && (req.get("origin") !== origin || !req.is("application/json"))) return res.sendStatus(403);
     next();
@@ -184,6 +186,29 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
       res.json({ ok: true });
     } catch (_) { publicError(res, 503, "Atualização temporariamente indisponível."); }
   });
+  app.get("/api/assisted/map-config", identity, (_req, res) => {
+    res.json({ enabled: mapEnabled, tiles: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", center: [-24.724, -53.744], provider: "OSRM/FOSSGIS" });
+  });
+  app.post("/api/assisted/route-preview", throttle, identity, async (req, res) => {
+    if (!mapEnabled) return publicError(res, 503, "Mapa e rota temporariamente indisponíveis.");
+    if (!shape(req.body, ["pickup", "destination", "testOnly", "consentExternalRouting"])) return res.sendStatus(400);
+    const member = await admin.rpc("nave_assisted_snapshot", { p_actor: req.actor.id, p_aal2: req.actor.aal2 });
+    if (member.error || member.data?.member?.role !== "passenger") return res.sendStatus(403);
+    try {
+      const route = await routePlanner(req.body), now = Date.now();
+      for (const [key, value] of routeQuotes) if (value.until <= now) routeQuotes.delete(key);
+      if (routeQuotes.size >= 500) return publicError(res, 503, "Aguarde antes de calcular outra rota.");
+      const routeToken = randomUUID();
+      routeQuotes.set(routeToken, { actor: req.actor.id, route, until: now + 300000 });
+      setTimeout(() => routeQuotes.delete(routeToken), 300000).unref();
+      res.json({ routeToken, route, validForSeconds: 300 });
+    } catch (error) {
+      const invalid = ["invalid_points_or_consent", "invalid_local_distance"].includes(error.message);
+      const cooldown = error.message === "routing_cooldown";
+      if (cooldown) res.set("Retry-After", "2");
+      publicError(res, invalid ? 400 : cooldown ? 429 : 503, invalid ? "Confirme dois pontos locais, entre 50 metros e 25 km, e autorize o cálculo da rota." : cooldown ? "Aguarde dois segundos antes de calcular novamente." : "Não foi possível obter uma rota pelas ruas. Revise os pontos e tente novamente; nenhuma distância ou duração foi inventada.");
+    }
+  });
   app.get("/api/assisted/snapshot", identity, async (req, res) => {
     const { data, error } = await admin.rpc("nave_assisted_snapshot", { p_actor: req.actor.id, p_aal2: req.actor.aal2 });
     if (error) return publicError(res, error.message?.includes("forbidden") ? 403 : 503, "Acesso indisponível. Na Central, entre com segundo fator.");
@@ -191,7 +216,12 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
   });
   app.post("/api/assisted/command", identity, async (req, res) => {
     const b = req.body;
-    if (!shape(b, ["action", "rideId", "version", "requestKey", "data"]) || typeof b.action !== "string" || b.action.length > 30 || !Number.isSafeInteger(b.version) || b.version < 0 || !/^[0-9a-f-]{36}$/i.test(b.requestKey || "") || !(b.rideId === null || /^[0-9a-f-]{36}$/i.test(b.rideId || "")) || !shape(b.data, ["pickup", "destination", "category", "driverId", "approved", "available"])) return publicError(res, 400, "Comando inválido.");
+    if (!shape(b, ["action", "rideId", "version", "requestKey", "data"]) || typeof b.action !== "string" || b.action.length > 30 || !Number.isSafeInteger(b.version) || b.version < 0 || !/^[0-9a-f-]{36}$/i.test(b.requestKey || "") || !(b.rideId === null || /^[0-9a-f-]{36}$/i.test(b.rideId || "")) || !shape(b.data, ["pickup", "destination", "category", "driverId", "approved", "available", "routeToken"])) return publicError(res, 400, "Comando inválido.");
+    if (Object.hasOwn(b.data, "routeToken")) {
+      const quote = routeQuotes.get(b.data.routeToken);
+      if (b.action !== "start" || !quote || quote.actor !== req.actor.id || quote.until <= Date.now()) return publicError(res, 409, "A rota venceu ou não pertence a esta conta. Calcule novamente antes de solicitar.");
+      b.data = { ...b.data, routePreview: quote.route }; delete b.data.routeToken;
+    }
     const { data, error } = await admin.rpc("nave_assisted_command", { p_actor: req.actor.id, p_aal2: req.actor.aal2, p_action: b.action, p_id: b.rideId, p_version: b.version, p_key: b.requestKey, p_data: b.data });
     if (error) {
       const status = error.message?.includes("forbidden") ? 403 : ["23505", "P0001", "22P02", "23514"].includes(error.code) ? 409 : 503;
@@ -199,6 +229,7 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
     }
     res.json(data);
   });
+  app.use("/assistido/vendor/leaflet", express.static(path.join(path.dirname(require.resolve("leaflet/package.json")), "dist"), { index: false }));
   app.use("/assistido", express.static(path.join(__dirname, "public"), { index: "index.html" }));
   app.use((error, _req, res, _next) => publicError(res, error.type === "entity.too.large" ? 413 : 400, "Requisição inválida."));
   return app;

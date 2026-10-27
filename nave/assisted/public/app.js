@@ -1,13 +1,14 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
+  const routeUI = window.NaveRouteMap;
   let state = null, busy = false, connected = false, reading = false, generation = 0, readFinished = Promise.resolve(), mfaFactor = null, centralMode = false;
   function clearMfa() { mfaFactor = null; $("mfa-setup").hidden = true; $("mfa-qr").removeAttribute("src"); $("mfa-secret").textContent = ""; $("mfa-verify").reset(); }
   const phases = { requested: "Aguardando a Central", offered: "Aguardando aceite", accepted: "Motorista a caminho", arrived: "Motorista no embarque", in_trip: "Em andamento", completed: "Concluída", cancelled: "Cancelada" };
   const terminal = r => ["completed", "cancelled"].includes(r.phase);
   function message(text) { $("message").textContent = text; }
   function disable() { document.querySelectorAll(".command").forEach(b => { b.disabled = busy || !connected; }); }
-  function clear() { clearMfa(); centralMode = false; $("central-login").open = false; $("central-security").hidden = true; state = null; connected = false; generation++; $("rides").replaceChildren(); $("drivers").replaceChildren(); $("identity").textContent = ""; $("account").hidden = true; $("auth").hidden = false; }
+  function clear() { routeUI.clear(); clearMfa(); centralMode = false; $("central-login").open = false; $("central-security").hidden = true; state = null; connected = false; generation++; $("rides").replaceChildren(); $("drivers").replaceChildren(); $("identity").textContent = ""; $("account").hidden = true; $("auth").hidden = false; }
   async function request(path, body, retry = true) {
     const response = await fetch("/api/assisted/" + path, { method: body === undefined ? "GET" : "POST", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (response.status === 401 && retry && !["login", "signup", "refresh", "recover"].includes(path)) {
@@ -45,6 +46,11 @@
     for (const r of state.rides) {
       const card = document.createElement("article"); card.className = "ride"; card.dataset.rideId = r.id;
       card.append(text("p", phases[r.phase], "phase"), text("h3", r.category.toUpperCase()), text("p", "Embarque: " + r.pickup + "\nDestino: " + r.destination, "route"), text("p", "Passageiro: " + r.passenger_name + (r.driver_name ? " · Motorista: " + r.driver_name : "")), text("small", "Pedido " + r.id.slice(0, 8) + " · versão " + r.version));
+      if (r.route_preview?.schemaVersion === 1) {
+        card.append(text("p", routeUI.describe(r.route_preview)));
+        const view = text("button", "Ver trajeto no mapa", "secondary"); view.type = "button";
+        view.addEventListener("click", () => routeUI.view(r.route_preview)); card.append(view);
+      }
       if (m.role === "admin" && r.phase === "requested") {
         const label = text("label", "Atribuir motorista"), select = document.createElement("select"); select.setAttribute("aria-label", "Motorista para " + r.id.slice(0, 8));
         const empty = text("option", "Selecione um motorista disponível"); empty.value = ""; select.append(empty);
@@ -86,6 +92,7 @@
     try {
       const result = await request("command", { action, rideId: ride?.id || null, version: ride?.version || 0, requestKey: crypto.randomUUID(), data });
       if (result.testOnly !== true) throw new Error("Resposta incompatível.");
+      if (action === "start") routeUI.resetBooking();
       message("Ação salva. Atualizando a solicitação.");
     } catch (error) { message(error.message + " Confira o estado atualizado antes de agir novamente."); }
     finally { busy = false; await refresh(true); }
@@ -123,7 +130,8 @@
     catch (error) { message(error.message); }
     finally { busy = false; b.disabled = false; await refresh(true); }
   });
-  $("booking").addEventListener("submit", event => { event.preventDefault(); command("start", null, Object.fromEntries(new FormData(event.currentTarget))); });
+  routeUI.bind({ request, message });
+  $("booking").addEventListener("submit", event => { event.preventDefault(); const route = routeUI.booking(); if (route.error) return message(route.error); command("start", null, { ...Object.fromEntries(new FormData(event.currentTarget)), ...route }); });
   $("toggle-availability").addEventListener("click", () => command("availability", null, { available: !state.member.available }));
   $("refresh").addEventListener("click", () => refresh());
   $("logout").addEventListener("click", async () => { if (busy) return; busy = true; generation++; try { await request("logout", {}, false); message("Você saiu."); } catch (error) { message(error.message); } finally { busy = false; clear(); } });

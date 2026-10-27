@@ -1,7 +1,11 @@
 "use strict";
 const { createAssistedApp } = require("./app");
+const { createRouting } = require("./routing");
 const env = process.env;
 const url = env.NAVE_ASSISTED_SUPABASE_URL || "";
 if (env.NODE_ENV !== "staging" || env.NAVE_ASSISTED_ENABLED !== "true" || !url || url === env.SUPABASE_URL || /mkeexsryqnaxsnshrfqn|ryghlrngennxfuoteofe/.test(url)) throw new Error("Use an explicitly enabled, isolated staging database. Existing NAVE/WIFLY projects are forbidden.");
-const app = createAssistedApp({ url, publishableKey: env.NAVE_ASSISTED_PUBLISHABLE_KEY, serviceKey: env.NAVE_ASSISTED_SERVICE_KEY, origin: env.NAVE_ASSISTED_ORIGIN });
+const fixture = env.NAVE_ASSISTED_ROUTING_FIXTURE_URL;
+if (fixture && !(env.GITHUB_ACTIONS === "true" && url.startsWith("http://127.0.0.1:") && env.NAVE_ASSISTED_ORIGIN === "http://127.0.0.1:4318")) throw new Error("Routing fixtures are permitted only in the disposable CI environment.");
+const routePlanner = fixture ? createRouting({ endpoint: fixture, allowFixture: true }) : createRouting();
+const app = createAssistedApp({ url, publishableKey: env.NAVE_ASSISTED_PUBLISHABLE_KEY, serviceKey: env.NAVE_ASSISTED_SERVICE_KEY, origin: env.NAVE_ASSISTED_ORIGIN, routePlanner, mapEnabled: env.NAVE_ASSISTED_MAP_ENABLED !== "false" });
 app.listen(Number(env.PORT || 4318), "0.0.0.0", () => console.log("NAVE assisted staging ready; no commercial rides or payments."));

@@ -16,7 +16,7 @@ Um passageiro e um motorista só podem ter um pedido ativo cada, imposto por ín
 
 As telas consultam o mesmo banco, bloqueiam comandos sem confirmação de conexão e não usam localStorage/sessionStorage para tokens. Consultas anteriores a um comando não reconciliam resultado incerto. Sessões de passageiro são retomadas após recarga; refresh fica em cookie HttpOnly. Saída tenta revogar a sessão e limpa cookies. Isso não promete invalidação imediata de todos os JWTs já emitidos nem saída de todos os dispositivos.
 
-## Preparação de ambiente — não executada no Supabase hospedado
+## Configuração do ambiente isolado
 
 Usar as versões fixadas em `nave/package-lock.json` com `npm ci --prefix nave --ignore-scripts`. O runtime requer Node >=22.
 
@@ -41,8 +41,24 @@ O workflow existente de Auth isolado instala este script apenas no Supabase temp
 
 ## Limites que permanecem
 
-Falta ambiente interativo persistente aprovado para testar em celulares; publicação e homologação humana não estão incluídas na aprovação de CI. Cadastro documental completo, geocodificação validada, preços/aceite financeiro, pagamentos, operação comercial, suporte/legal e notificações em segundo plano permanecem fora deste pacote. Apenas endereços digitados: não há validação geográfica nem ETA operacional. Categoria é preferência do pedido; a elegibilidade física do veículo ainda exige implementação antes de despacho real.
+O ambiente interativo persistente existe no serviço separado nave-assistido-homologacao; o piloto assistido da versão 45dff4c6d613e5ccf9f28a6eb76f94fe830b63b5 foi aprovado expressamente em 27/10/2026, com limites. Novas funções de mapa/rota ainda precisam de validação humana própria; CI não substitui essa aprovação. Cadastro documental completo, geocodificação validada, preços/aceite financeiro, pagamentos, operação comercial, suporte/legal e notificações em segundo plano permanecem fora deste pacote. Apenas endereços digitados: não há validação geográfica nem ETA operacional. Categoria é preferência do pedido; a elegibilidade física do veículo ainda exige implementação antes de despacho real.
 
 Há no máximo 50 pedidos por snapshot, 500 eventos retornados e limite de 5.000 chaves por participante. Ainda não há paginação completa, política de retenção/eliminação, rate limit distribuído, recuperação de incidente ou tratamento operacional de motorista retirado durante viagem; a aprovação só pode ser retirada quando não há pedido ativo. Não interpretar essas limitações como autorização para reduzir segurança ou iniciar corridas comerciais.
 
 O PMC só deve mudar com evidência de critérios completos. Este pacote não declara homologação nem Marco Histórico.
+
+## Mapa e trajeto do piloto assistido
+
+A seleção é opcional e feita pelo próprio passageiro no mapa: não usa geocodificação/autocomplete nem GPS. O texto de embarque/destino é referência e deve ser conferido com os pontos escolhidos. Os serviços públicos não estão aprovados para tráfego comercial ou escala.
+
+Leaflet 1.9.4 é servido localmente, com versão fixa no lockfile. Imagens do mapa são carregadas diretamente de https://tile.openstreetmap.org/{z}/{x}/{y}.png apenas após autorização e ação do usuário, com atribuição visível, Referer de origem, cache normal do navegador e sem prefetch/download em massa. Política: https://operations.osmfoundation.org/policies/tiles/ .
+
+A rota é calculada pelo servidor em https://routing.openstreetmap.de/routed-car/route/v1/driving/ , com identificação da aplicação, timeout, cache de cinco minutos e limite agregado de uma chamada a cada 1,1 segundo, uma única instância/processo. Sem filas/bulk e sem requisições automáticas. Fonte e atribuição OSRM/FOSSGIS/OpenStreetMap visíveis. Política/privacidade: https://routing.openstreetmap.de/about.html . Provedor pode registrar os pontos; não são enviados nomes, email, endereço digitado ou tokens de sessão. Mapas públicos recebem a região visualizada e IP do navegador. Não é ETA do motorista nem considera trânsito.
+
+A prévia produz token opaco vinculado à identidade, válido por cinco minutos. O cliente não pode fornecer geometria, distância ou duração no comando. Ao criar o pedido, o servidor resolve o token e grava o trajeto na mesma transação da solicitação/evento. RLS e acesso exclusivo por RPC do servidor permanecem; somente participantes e Central veem o trajeto salvo. O token não é autorização para atuar em outro perfil. Trocar pontos invalida a prévia; erro do provedor não inventa uma rota. Usuário pode remover os pontos e continuar explicitamente só com endereços.
+
+Migração aditiva gerada com CLI 2.122.0: supabase/migrations/20261027125036_assisted_route_preview.sql. Instalar somente no projeto isolado mxtunjeyjxbhpjyitcqk, depois de CI. Adiciona route_preview anulável; pedidos antigos continuam válidos. Rollback da aplicação pode reter a coluna e os trajetos, sem apagar dados; não reaplicar a migração nem remover histórico automaticamente. NAVE_ASSISTED_MAP_ENABLED=false desativa novas prévias e configuração de mapas. Não subir várias instâncias com este limitador em memória.
+
+CI usa apenas um servidor de rota loopback e imagens de mapa interceptadas, sem consultas públicas ou coordenadas reais. NAVE_ASSISTED_ROUTING_FIXTURE_URL só é aceita pelo entrypoint com GITHUB_ACTIONS=true, Supabase loopback e origem loopback do runner; projetos hospedados recusam a fixture. Cobertura: consentimento, validação, limites, cache, falhas, token de outra conta, rejeição de geometria do cliente, persistência após reinício e seleção/visualização entre os perfis.
+
+A homologação concedida à versão anterior não é estendida automaticamente a este bloco novo.

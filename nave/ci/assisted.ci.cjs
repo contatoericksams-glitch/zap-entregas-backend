@@ -2,6 +2,8 @@
 const { test } = require("node:test"), assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), crypto = require("node:crypto");
 const { spawn } = require("node:child_process"), { once } = require("node:events");
+const http = require("node:http");
+const { distanceMeters } = require("../core/nearest-pilot-preview");
 const { createClient } = require("@supabase/supabase-js"), { chromium } = require("playwright");
 const { fixtureTotp } = require("./totp-fixture.cjs");
 
@@ -14,9 +16,9 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
   const origin = "http://127.0.0.1:4318", options = { auth: { persistSession: false, autoRefreshToken: false } };
   const admin = createClient(url, serviceKey, options), password = crypto.randomBytes(24).toString("hex");
   const roles = {}, jars = {}, clients = {};
-  let child, browser;
+  let child, browser, routingServer, routingFixtureUrl;
   async function start() {
-    child = spawn(process.execPath, [path.join(__dirname, "../assisted/server.js")], { env: { ...process.env, NODE_ENV: "staging", PORT: "4318", NAVE_ASSISTED_ENABLED: "true", NAVE_ASSISTED_SUPABASE_URL: url, NAVE_ASSISTED_PUBLISHABLE_KEY: key, NAVE_ASSISTED_SERVICE_KEY: serviceKey, NAVE_ASSISTED_ORIGIN: origin }, stdio: ["ignore", "pipe", "pipe"] });
+    child = spawn(process.execPath, [path.join(__dirname, "../assisted/server.js")], { env: { ...process.env, NODE_ENV: "staging", PORT: "4318", NAVE_ASSISTED_ENABLED: "true", NAVE_ASSISTED_SUPABASE_URL: url, NAVE_ASSISTED_PUBLISHABLE_KEY: key, NAVE_ASSISTED_SERVICE_KEY: serviceKey, NAVE_ASSISTED_ORIGIN: origin, NAVE_ASSISTED_ROUTING_FIXTURE_URL: routingFixtureUrl }, stdio: ["ignore", "pipe", "pipe"] });
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("Assisted server did not start")), 10000);
       child.stdout.on("data", data => { if (String(data).includes("staging ready")) { clearTimeout(timer); resolve(); } });
@@ -62,11 +64,20 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     assert.equal(result.status, 302); assert.equal(result.response.headers.get("location"), "/assistido/?auth=confirmed");
   }
   try {
+    routingServer = http.createServer((req, res) => {
+      const raw = new URL(req.url, "http://127.0.0.1").pathname.split("/").at(-1);
+      const [a, b] = raw.split(";").map(p => p.split(",").map(Number));
+      const distance = distanceMeters({ lat: a[1], lng: a[0] }, { lat: b[1], lng: b[0] });
+      res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ code: "Ok", routes: [{ distance: distance * 1.2, duration: Math.max(30, distance / 8), geometry: { type: "LineString", coordinates: [a, [(a[0]+b[0])/2, (a[1]+b[1])/2], b] } }] }));
+    });
+    await new Promise(resolve => routingServer.listen(0, "127.0.0.1", resolve));
+    routingFixtureUrl = `http://127.0.0.1:${routingServer.address().port}/route/v1/driving/`;
     const securityBefore = await admin.rpc("nave_assisted_fixture_security"); assert.equal(securityBefore.error, null);
     assert.deepEqual({ ...securityBefore.data, contact_rows: 0 }, { rls: true, anonymous_execute: false, authenticated_execute: false, direct_member_access: false, contact_rows: 0 });
     await start();
     assert.equal((await call("guest", "/api/assisted/snapshot")).status, 401);
     assert.equal((await call("guest", "/api/assisted/mfa/enroll", {})).status, 401);
+    assert.equal((await call("guest", "/api/assisted/route-preview", {})).status, 401);
     assert.equal((await call("guest", "/api/assisted/login", {}, { Origin: "https://untrusted.invalid" })).status, 403);
     for (const role of ["passenger", "driver", "other"]) {
       const email = `assisted-${crypto.randomUUID()}@example.invalid`, name = "Pessoa " + role;
@@ -103,7 +114,16 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     assert.equal((await call("passenger", "/api/assisted/command", command("approve_driver", null, { driverId: roles.driver.id, approved: true }))).status, 403);
     await act("central", "approve_driver", null, { driverId: roles.driver.id, approved: true });
     await act("driver", "availability", null, { available: true });
-    const createBody = command("start", null, { pickup: "Rua do Embarque, 10 — fixture", destination: "Rua do Destino, 20 — fixture", category: "eco" });
+    await stop(); await start();
+    const routeRequest = { pickup: { lat: -24.724, lng: -53.744 }, destination: { lat: -24.73, lng: -53.735 }, testOnly: true, consentExternalRouting: true };
+    assert.equal((await call("driver", "/api/assisted/route-preview", routeRequest)).status, 403);
+    assert.equal((await call("passenger", "/api/assisted/route-preview", { ...routeRequest, consentExternalRouting: false })).status, 400);
+    const quote = await ok("passenger", "/api/assisted/route-preview", routeRequest);
+    assert.equal(quote.route.testOnly, true); assert.ok(quote.route.distanceMeters > 50);
+    const routeData = { pickup: "Rua do Embarque, 10 — fixture", destination: "Rua do Destino, 20 — fixture", category: "eco", routeToken: quote.routeToken };
+    assert.equal((await call("other", "/api/assisted/command", command("start", null, routeData))).status, 409);
+    assert.equal((await call("passenger", "/api/assisted/command", command("start", null, { ...routeData, routePreview: quote.route }))).status, 400);
+    const createBody = command("start", null, routeData);
     const first = await ok("passenger", "/api/assisted/command", createBody);
     const replay = await ok("passenger", "/api/assisted/command", createBody); assert.equal(replay.rideId, first.rideId); assert.equal(replay.replayed, true);
     assert.equal((await call("passenger", "/api/assisted/command", { ...createBody, data: { ...createBody.data, category: "confort" } })).status, 409);
@@ -111,6 +131,7 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     assert.notEqual(first.rideId, second.rideId); assert.equal((await snap("passenger")).rides.length, 1);
     assert.equal((await snap("other")).rides[0].id, second.rideId);
     let ride = (await snap("passenger")).rides[0];
+    assert.deepEqual(ride.route_preview, quote.route);
     assert.equal((await call("other", "/api/assisted/command", command("cancel", ride))).status, 403);
     await act("central", "assign", ride, { driverId: roles.driver.id }); ride = (await snap("driver")).rides[0];
     const accepted = await Promise.all([call("driver", "/api/assisted/command", command("accept", ride)), call("driver", "/api/assisted/command", command("accept", ride))]);
@@ -157,6 +178,7 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     const views = {};
     for (const role of ["passenger", "driver", "central"]) {
       const context = await browser.newContext({ viewport: { width: role === "central" ? 1280 : 390, height: 844 } });
+      await context.route("https://tile.openstreetmap.org/**", route => route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6VwAAAABJRU5ErkJggg==", "base64") }));
       const page = await context.newPage(); await page.goto(origin + "/assistido/");
       page.on("pageerror", error => console.log("Assisted UI script error: " + error.message));
       await page.locator('#login input[name="email"]').fill(role === "central" ? adminEmail : roles[role].email);
@@ -176,15 +198,27 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     const p = views.passenger.page, d = views.driver.page, c = views.central.page;
     await p.locator('#booking input[name="pickup"]').fill("Embarque livre pelo navegador");
     await p.locator('#booking input[name="destination"]').fill("Destino livre pelo navegador");
-    await p.locator("#booking button").click();
+    await p.locator("#route-picker summary").click();
+    await p.locator("#open-map").click(); assert.equal(await p.locator("#map-stage").isVisible(), false);
+    await p.locator("#map-consent").check(); await p.locator("#open-map").click();
+    await p.locator("#booking-map.leaflet-container").waitFor({ state: "visible" });
+    await p.locator("#pick-center").click();
+    const mapBox = await p.locator("#booking-map").boundingBox();
+    await p.locator("#booking-map").click({ position: { x: mapBox.width * .75, y: mapBox.height * .5 } });
+    await p.locator("#calculate-route").click();
+    await p.waitForFunction(() => document.getElementById("route-summary").textContent.includes("km pelas ruas"));
+    await p.locator("#booking button.command").click();
     await p.waitForFunction(() => document.querySelector("#rides .phase")?.textContent === "Aguardando a Central").catch(async error => { console.log("Assisted booking status: " + await p.locator("#message").textContent()); console.log("Assisted phases: " + JSON.stringify(await p.locator("#rides .phase").allTextContents())); throw error; });
     const current = (await snap("passenger")).rides.find(r => r.phase === "requested");
+    assert.equal(current.route_preview?.schemaVersion, 1);
     const card = c.locator('[data-ride-id="' + current.id + '"]');
     await card.locator("select").selectOption(roles.driver.id); await card.getByRole("button", { name: "Enviar oferta", exact: true }).click();
     await d.getByRole("button", { name: "Recusar", exact: true }).click();
     await p.waitForFunction(() => document.querySelector("#rides .phase")?.textContent === "Aguardando a Central");
     await card.locator("select").selectOption(roles.driver.id); await card.getByRole("button", { name: "Enviar oferta", exact: true }).click();
     await d.getByRole("button", { name: "Aceitar", exact: true }).click();
+    await d.locator('[data-ride-id="' + current.id + '"]').getByRole("button", { name: "Ver trajeto no mapa", exact: true }).click();
+    await d.locator("#view-map-consent").check(); await d.locator("#saved-route-map.leaflet-container").waitFor({ state: "visible" });
     await p.waitForFunction(() => document.querySelector("#rides .phase")?.textContent === "Motorista a caminho");
     await p.reload(); await p.locator("#account").waitFor({ state: "visible" });
     await p.waitForFunction(() => document.querySelector("#rides .phase")?.textContent === "Motorista a caminho");
@@ -230,5 +264,5 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     console.log("PASS: self-service signup, real PKCE confirmation/recovery via local email, HttpOnly session, refresh, password change and logout; driver approval and Central MFA; no client role escalation.");
     console.log("PASS: multiple persistent requests, all categories, same-key replay/conflict, ownership denial, transactional single acceptance, separate-process restart, ordered history and no cancellation after boarding.");
     console.log("PASS: three browser roles, manual assignment, decline/reassign, acceptance through completion, reload without new login, offline blocking/recovery, and no browser token storage. All data in disposable Postgres; existing contact rows unchanged.");
-  } finally { if (browser) await browser.close(); await stop(); }
+  } finally { if (browser) await browser.close(); await stop(); if (routingServer) await new Promise(resolve => routingServer.close(resolve)); }
 });
