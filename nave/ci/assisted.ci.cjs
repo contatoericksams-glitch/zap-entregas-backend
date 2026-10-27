@@ -79,6 +79,7 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     assert.equal((await call("guest", "/api/assisted/mfa/enroll", {})).status, 401);
     assert.equal((await call("guest", "/api/assisted/mfa/challenge", { code: "123456" })).status, 401);
     assert.equal((await call("guest", "/api/assisted/route-preview", {})).status, 401);
+    assert.equal((await call("guest", "/api/assisted/geocode", {})).status, 401);
     assert.equal((await call("guest", "/api/assisted/login", {}, { Origin: "https://untrusted.invalid" })).status, 403);
     for (const role of ["passenger", "driver", "other"]) {
       const email = `assisted-${crypto.randomUUID()}@example.invalid`, name = "Pessoa " + role;
@@ -206,9 +207,27 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     await p.locator("#open-map").click(); assert.equal(await p.locator("#map-stage").isVisible(), false);
     await p.locator("#map-consent").check(); await p.locator("#open-map").click();
     await p.locator("#booking-map.leaflet-container").waitFor({ state: "visible" });
+    // Browser suggestions and device positions are synthetic; no public geocoder
+    // or real device location is contacted by this disposable test.
+    await p.route("**/api/assisted/geocode", async route => {
+      const b = route.request().postDataJSON(); assert.equal(b.consentExternalSearch, true);
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: [{ label: "Rua de teste, 10 · Cidade", point: { lat: -24.724, lng: -53.744 } }] }) });
+    });
+    await p.locator("#search-pickup").click(); await p.locator("#pickup-results button").click();
+    await p.locator("#calculate-route").click(); assert.match(await p.locator("#message").textContent(), /Confirme os pontos/);
+    await p.locator("#confirm-point").click();
+    await views.passenger.context.grantPermissions(["geolocation"]);
+    await views.passenger.context.setGeolocation({ latitude: -24.724, longitude: -53.744, accuracy: 20 });
+    await p.locator("#use-location").click();
+    await p.waitForFunction(() => document.getElementById("message").textContent.includes("precisão de 20"));
+    await p.locator("#confirm-point").click();
+    await p.locator('#booking input[name="pickup"]').fill("Embarque ajustado manualmente");
+    assert.equal(await p.locator("#pickup-point").textContent(), "Ainda não marcado");
+    await p.locator("#point-kind").selectOption("pickup");
     await p.locator("#pick-center").click();
     const mapBox = await p.locator("#booking-map").boundingBox();
     await p.locator("#booking-map").click({ position: { x: mapBox.width * .75, y: mapBox.height * .5 } });
+    await p.locator("#confirm-point").click();
     await p.locator("#calculate-route").click();
     await p.waitForFunction(() => document.getElementById("route-summary").textContent.includes("km pelas ruas"));
     await p.locator("#booking button.command").click();

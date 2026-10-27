@@ -3,6 +3,7 @@ const express = require("express"), path = require("node:path");
 const { createClient } = require("@supabase/supabase-js");
 const { createHash, randomUUID } = require("node:crypto");
 const { createRouting } = require("./routing");
+const { createGeocoding } = require("./geocoding");
 const authOptions = { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, flowType: "pkce" };
 const publicError = (res, status, message) => res.status(status).json({ error: message });
 function cookies(req) {
@@ -14,7 +15,7 @@ function cookies(req) {
   return result;
 }
 function shape(body, keys) { return body && typeof body === "object" && !Array.isArray(body) && Object.keys(body).every(k => keys.includes(k)); }
-function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient = createClient, routePlanner = createRouting(), mapEnabled = true }) {
+function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient = createClient, routePlanner = createRouting(), addressSearch = createGeocoding(), mapEnabled = true }) {
   const target = new URL(origin), database = new URL(url);
   const loopback = target.protocol === "http:" && target.hostname === "127.0.0.1";
   if ((!loopback && target.protocol !== "https:") || target.origin !== origin || target.username || target.password || (!url.startsWith("http://127.0.0.1:") && database.protocol !== "https:") || !publishableKey || !serviceKey || publishableKey === serviceKey) throw new Error("Invalid assisted environment");
@@ -203,6 +204,14 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
       if (error) return publicError(res, 400, "Não foi possível atualizar a senha.");
       res.json({ ok: true });
     } catch (_) { publicError(res, 503, "Atualização temporariamente indisponível."); }
+  });
+  app.post("/api/assisted/geocode", throttle, identity, async (req, res) => {
+    if (!mapEnabled) return publicError(res, 503, "Busca temporariamente indisponível.");
+    if (!shape(req.body, ["query", "consentExternalSearch", "testOnly"])) return res.sendStatus(400);
+    const member = await admin.rpc("nave_assisted_snapshot", { p_actor: req.actor.id, p_aal2: req.actor.aal2 });
+    if (member.error || member.data?.member?.role !== "passenger") return res.sendStatus(403);
+    try { res.json(await addressSearch(req.body)); }
+    catch (error) { publicError(res, error.message === "invalid_search" ? 400 : error.message === "search_cooldown" ? 429 : 503, error.message === "invalid_search" ? "Digite de 5 a 240 caracteres e autorize a busca." : error.message === "search_cooldown" ? "Aguarde alguns segundos antes de buscar novamente." : "Busca indisponível. Você pode marcar o ponto manualmente no mapa."); }
   });
   app.get("/api/assisted/map-config", identity, (_req, res) => {
     res.json({ enabled: mapEnabled, tiles: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", center: [-24.724, -53.744], provider: "OSRM/FOSSGIS" });
