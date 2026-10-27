@@ -12,7 +12,8 @@ function createGeocoding({ fetchImpl = fetch, now = () => Date.now() } = {}) {
     busy = true; last = now();
     try {
       const url = new URL(ENDPOINT);
-      url.search = new URLSearchParams({ q: query, limit: "5", lang: "pt", bbox: "-55.7,-26.5,-52.4,-24.4", lat: "-24.724", lon: "-53.744" }).toString();
+      // The public demo rejects lang=pt with HTTP 400. Use original local names.
+      url.search = new URLSearchParams({ q: query, limit: "5", lang: "default", bbox: "-55.7,-26.5,-52.4,-24.4", lat: "-24.724", lon: "-53.744" }).toString();
       const response = await fetchImpl(url, { redirect: "error", signal: AbortSignal.timeout(7000), headers: { Accept: "application/json", "User-Agent": "NAVE-Assistido-Testes/1.0 (+https://nave-assistido-homologacao.onrender.com/assistido/)" } });
       if (!response.ok) throw new Error("search_unavailable");
       const chunks = []; let bytes = 0;

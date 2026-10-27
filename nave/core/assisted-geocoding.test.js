@@ -5,7 +5,7 @@ const body = { query: "Rua de teste, cidade", consentExternalSearch: true, testO
 const feature = (coords = [-53.744, -24.724]) => ({ geometry: { type: "Point", coordinates: coords }, properties: { street: "Rua de teste", housenumber: "10", city: "Cidade", countrycode: "BR" } });
 test("address search requires consent, valid query and fixed provider", async () => {
   let calls = 0;
-  const search = createGeocoding({ fetchImpl: async url => { calls++; assert.equal(url.origin + url.pathname, ENDPOINT); assert.equal(url.searchParams.get("q"), body.query); assert.equal(url.searchParams.get("limit"), "5"); return Response.json({ features: [feature()] }); } });
+  const search = createGeocoding({ fetchImpl: async url => { calls++; assert.equal(url.origin + url.pathname, ENDPOINT); assert.equal(url.searchParams.get("q"), body.query); assert.equal(url.searchParams.get("limit"), "5"); assert.equal(url.searchParams.get("lang"), "default", "Public Photon rejects unsupported pt; preserve local place names"); return Response.json({ features: [feature()] }); } });
   for (const input of [{ ...body, consentExternalSearch: false }, { ...body, testOnly: false }, { ...body, query: "ab" }, { ...body, query: "x".repeat(241) }]) await assert.rejects(search(input), /invalid_search/);
   assert.equal(calls, 0); assert.equal((await search(body)).results[0].label, "Rua de teste, 10 · Cidade");
   await assert.rejects(search(body), /search_cooldown/); assert.equal(calls, 1);
