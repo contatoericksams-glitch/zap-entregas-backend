@@ -273,6 +273,10 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     assert.equal(await c.evaluate(() => localStorage.length + sessionStorage.length), 0);
     await browser.close(); browser = null;
 
+    // A separate test phase gets a fresh process/IP throttle window. Keep the
+    // production limit unchanged; database accounts and sessions survive restart.
+    await stop(); await start();
+
     // Recovery email is captured locally, not delivered to an external address.
     await ok("passenger", "/api/assisted/logout", {});
     await ok("passenger", "/api/assisted/recover", { email: roles.passenger.email });
