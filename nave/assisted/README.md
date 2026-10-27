@@ -62,3 +62,9 @@ Migração aditiva gerada com CLI 2.122.0: supabase/migrations/20261027125036_as
 CI usa apenas um servidor de rota loopback e imagens de mapa interceptadas, sem consultas públicas ou coordenadas reais. NAVE_ASSISTED_ROUTING_FIXTURE_URL só é aceita pelo entrypoint com GITHUB_ACTIONS=true, Supabase loopback e origem loopback do runner; projetos hospedados recusam a fixture. Cobertura: consentimento, validação, limites, cache, falhas, token de outra conta, rejeição de geometria do cliente, persistência após reinício e seleção/visualização entre os perfis.
 
 A homologação concedida à versão anterior não é estendida automaticamente a este bloco novo.
+
+## Recuperação de acesso da Central
+
+Uma sessão criada pelo link de recuperação ainda precisa confirmar o TOTP existente antes de abrir a Central. A interface apresenta Confirmar acesso protegido quando a sessão está em AAL1 e há fator verificado. Após validar o código do próprio autenticador, o servidor emite a sessão AAL2; só então o painel e Alterar minha senha ficam disponíveis. Também funciona quando o login por senha foi feito sem preencher o segundo fator inicialmente.
+
+GET /api/assisted/mfa/status retorna apenas se a sessão da própria conta precisa de segundo fator. POST /api/assisted/mfa/challenge aceita somente o código; a identidade e o fator verificado são escolhidos no servidor a partir da sessão, sem IDs fornecidos pelo cliente. Não remove fatores nem concede papéis. Código inválido mantém o formulário e sua mensagem, sem abrir a Central. Senha e código não são armazenados no navegador. Perda do próprio autenticador continua exigindo procedimento autorizado separado; o link de email não contorna o MFA.

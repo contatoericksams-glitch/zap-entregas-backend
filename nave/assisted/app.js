@@ -65,7 +65,7 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
       if (error || !data?.user?.email_confirmed_at) return publicError(res, 401, "Entre para continuar.");
       const assurance = await c.auth.mfa.getAuthenticatorAssuranceLevel(token);
       if (assurance.error) return publicError(res, 503, "Não foi possível validar a sessão.");
-      req.actor = { id: data.user.id, aal2: assurance.data.currentLevel === "aal2" && assurance.data.nextLevel === "aal2" };
+      req.actor = { id: data.user.id, aal2: assurance.data.currentLevel === "aal2" && assurance.data.nextLevel === "aal2", requiresMfa: assurance.data.currentLevel !== "aal2" && assurance.data.nextLevel === "aal2" };
       req.accessToken = token; next();
     } catch (_) { publicError(res, 503, "Serviço indisponível. Tente novamente."); }
   };
@@ -102,7 +102,10 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
         if (verified.error) return publicError(res, 403, "Segundo fator inválido.");
         data = { ...data, session: verified.data };
       }
-      await enroll(data.user); saveSession(res, data.session); res.json({ ok: true });
+      await enroll(data.user);
+      const assurance = await c.auth.mfa.getAuthenticatorAssuranceLevel(data.session.access_token);
+      if (assurance.error) return publicError(res, 503, "Não foi possível conferir o segundo fator.");
+      saveSession(res, data.session); res.json({ ok: true, requiresMfa: assurance.data.currentLevel !== "aal2" && assurance.data.nextLevel === "aal2" });
     } catch (_) { publicError(res, 503, "Entrada temporariamente indisponível."); }
   });
   async function accountClient(req, res) {
@@ -112,6 +115,20 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
     saveSession(res, current.data.session);
     return c;
   }
+  app.get("/api/assisted/mfa/status", identity, (req, res) => res.json({ requiresMfa: req.actor.requiresMfa }));
+  app.post("/api/assisted/mfa/challenge", throttle, identity, async (req, res) => {
+    if (!shape(req.body, ["code"]) || typeof req.body.code !== "string" || !/^[0-9]{6}$/.test(req.body.code)) return res.sendStatus(400);
+    try {
+      const c = await accountClient(req, res);
+      if (!c) return res.sendStatus(401);
+      const factors = await c.auth.mfa.listFactors();
+      const factor = factors.data?.totp?.find(f => f.status === "verified");
+      if (factors.error || !factor) return publicError(res, 403, "Esta conta não possui um autenticador confirmado.");
+      const result = await c.auth.mfa.challengeAndVerify({ factorId: factor.id, code: req.body.code });
+      if (result.error) return publicError(res, 403, "Código inválido. Use o código atual do autenticador desta conta.");
+      saveSession(res, result.data); res.json({ ok: true });
+    } catch (_) { publicError(res, 503, "Não foi possível confirmar o autenticador."); }
+  });
   app.post("/api/assisted/mfa/enroll", throttle, identity, async (req, res) => {
     if (!shape(req.body, []) || Object.keys(req.body).length) return res.sendStatus(400);
     try {
@@ -176,6 +193,7 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
   });
   app.post("/api/assisted/password", throttle, identity, async (req, res) => {
     if (!shape(req.body, ["password"]) || typeof req.body.password !== "string" || req.body.password.length < 12 || req.body.password.length > 128) return publicError(res, 400, "Use uma senha de 12 a 128 caracteres.");
+    if (req.actor.requiresMfa) return publicError(res, 403, "Confirme seu autenticador antes de alterar a senha.");
     try {
       const c = client(), jar = cookies(req);
       const session = await c.auth.setSession({ access_token: jar.nave_access, refresh_token: jar.nave_refresh });

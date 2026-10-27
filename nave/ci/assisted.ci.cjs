@@ -77,6 +77,7 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     await start();
     assert.equal((await call("guest", "/api/assisted/snapshot")).status, 401);
     assert.equal((await call("guest", "/api/assisted/mfa/enroll", {})).status, 401);
+    assert.equal((await call("guest", "/api/assisted/mfa/challenge", { code: "123456" })).status, 401);
     assert.equal((await call("guest", "/api/assisted/route-preview", {})).status, 401);
     assert.equal((await call("guest", "/api/assisted/login", {}, { Origin: "https://untrusted.invalid" })).status, 403);
     for (const role of ["passenger", "driver", "other"]) {
@@ -108,6 +109,9 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     assert.equal((await admin.rpc("nave_assisted_fixture_admin", { p_actor: created.data.user.id })).error, null);
     await ok("central", "/api/assisted/login", { email: adminEmail, password });
     assert.equal((await call("central", "/api/assisted/snapshot")).status, 403);
+    assert.equal((await ok("central", "/api/assisted/mfa/status")).requiresMfa, true);
+    assert.equal((await call("central", "/api/assisted/password", { password: crypto.randomBytes(24).toString("hex") })).status, 403);
+    assert.equal((await call("central", "/api/assisted/mfa/challenge", { code: "abcdef" })).status, 400);
     await ok("central", "/api/assisted/login", { email: adminEmail, password, code: fixtureTotp(secret) });
     assert.equal((await snap("central")).member.role, "admin");
     assert.equal((await call("driver", "/api/assisted/command", command("availability", null, { available: true }))).status, 403);
@@ -248,6 +252,25 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     assert.equal(await setupPage.evaluate(() => localStorage.length + sessionStorage.length), 0);
     await setupContext.close();
     await p.locator("#logout").click(); await p.locator("#auth").waitFor({ state: "visible" }); assert.equal(await p.locator("#rides article").count(), 0);
+    // Reproduce the hosted Central recovery issue: PKCE is AAL1 and must not
+    // open the operational panel until the account owner verifies existing TOTP.
+    await c.locator("#logout").click(); await c.locator("#auth").waitFor({ state: "visible" });
+    await c.locator('#recover input[name="email"]').fill(adminEmail); await c.locator("#recover button").click();
+    await c.goto(await mailLink(adminEmail));
+    await c.locator("#mfa-challenge").waitFor({ state: "visible" });
+    assert.equal(await c.locator("#account").isVisible(), false);
+    await c.locator('#mfa-challenge-form input[name="code"]').fill(fixtureTotp(secret));
+    await c.locator("#mfa-challenge-form button").click(); await c.locator("#account").waitFor({ state: "visible" });
+    const centralNewPassword = crypto.randomBytes(24).toString("hex");
+    await c.getByText("Alterar minha senha", { exact: true }).click();
+    await c.locator('#password input[name="password"]').fill(centralNewPassword); await c.locator("#password button").click();
+    await c.waitForFunction(() => document.getElementById("message").textContent === "Senha atualizada.");
+    await c.locator("#logout").click(); await c.locator("#auth").waitFor({ state: "visible" });
+    await c.locator('#login input[name="email"]').fill(adminEmail); await c.locator('#login input[name="password"]').fill(centralNewPassword);
+    await c.locator("#central-login summary").click(); await c.locator('#login input[name="code"]').fill(fixtureTotp(secret));
+    await c.locator("#login button").click(); await c.locator("#account").waitFor({ state: "visible" });
+    assert.equal(await c.locator("#mfa-challenge").isVisible(), false);
+    assert.equal(await c.evaluate(() => localStorage.length + sessionStorage.length), 0);
     await browser.close(); browser = null;
 
     // Recovery email is captured locally, not delivered to an external address.

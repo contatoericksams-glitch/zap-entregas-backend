@@ -8,7 +8,8 @@
   const terminal = r => ["completed", "cancelled"].includes(r.phase);
   function message(text) { $("message").textContent = text; }
   function disable() { document.querySelectorAll(".command").forEach(b => { b.disabled = busy || !connected; }); }
-  function clear() { routeUI.clear(); clearMfa(); centralMode = false; $("central-login").open = false; $("central-security").hidden = true; state = null; connected = false; generation++; $("rides").replaceChildren(); $("drivers").replaceChildren(); $("identity").textContent = ""; $("account").hidden = true; $("auth").hidden = false; }
+  function clear() { routeUI.clear(); clearMfa(); $("mfa-challenge").hidden = true; $("mfa-challenge-form").reset(); centralMode = false; $("central-login").open = false; $("central-security").hidden = true; state = null; connected = false; generation++; $("rides").replaceChildren(); $("drivers").replaceChildren(); $("identity").textContent = ""; $("account").hidden = true; $("auth").hidden = false; }
+  function challengeMfa() { $("auth").hidden = true; $("account").hidden = true; $("mfa-challenge").hidden = false; message("Confirme seu autenticador para continuar. Se abriu um link de recuperação, você poderá alterar a senha depois dessa confirmação."); }
   async function request(path, body, retry = true) {
     const response = await fetch("/api/assisted/" + path, { method: body === undefined ? "GET" : "POST", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body), credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (response.status === 401 && retry && !["login", "signup", "refresh", "recover"].includes(path)) {
@@ -28,6 +29,7 @@
   function render() {
     const m = state.member, active = state.rides.some(r => !terminal(r));
     $("auth").hidden = true; $("account").hidden = false;
+    $("mfa-challenge").hidden = true;
     $("identity").textContent = m.name + " · " + ({ passenger: "Passageiro", driver: "Motorista", admin: "Central" }[m.role]);
     $("approval").hidden = m.role !== "driver" || m.approved;
     $("booking").hidden = m.role !== "passenger" || active;
@@ -82,7 +84,14 @@
     } catch (error) {
       if (generation !== currentGeneration) return false;
       connected = false; $("connection").textContent = "Sem confirmação do servidor. Comandos bloqueados até reconectar."; disable();
-      if ([401, 403].includes(error.status)) { clear(); if (error.status === 403) message(error.message); }
+      if ([401, 403].includes(error.status)) {
+        clear();
+        if (error.status === 403) {
+          const securityGeneration = generation;
+          try { const security = await request("mfa/status", undefined, false); if (securityGeneration === generation) { if (security.requiresMfa) challengeMfa(); else message(error.message); } }
+          catch (_) { if (securityGeneration === generation) message(error.message); }
+        }
+      }
       return false;
     } finally { reading = false; finishRead(); }
   }
@@ -111,6 +120,14 @@
     const input = $("login").elements.code; input.disabled = !$("central-login").open;
     if (input.disabled) input.value = "";
   });
+  $("mfa-challenge-form").addEventListener("submit", async event => {
+    event.preventDefault(); if (busy) return;
+    busy = true; generation++; const form = event.currentTarget, b = form.querySelector("button"), code = form.elements.code.value;
+    form.reset(); b.disabled = true; let verified = false;
+    try { await request("mfa/challenge", { code }, false); verified = true; message("Autenticador confirmado. Você pode continuar ou abrir Alterar minha senha."); }
+    catch (error) { message(error.message); if (error.status === 401) clear(); }
+    finally { busy = false; b.disabled = false; if (verified) await refresh(true); }
+  });
   $("mfa-enroll").addEventListener("click", async () => {
     if (busy || !connected) return;
     busy = true; generation++; disable(); $("mfa-enroll").disabled = true; clearMfa();
@@ -134,7 +151,8 @@
   $("booking").addEventListener("submit", event => { event.preventDefault(); const route = routeUI.booking(); if (route.error) return message(route.error); command("start", null, { ...Object.fromEntries(new FormData(event.currentTarget)), ...route }); });
   $("toggle-availability").addEventListener("click", () => command("availability", null, { available: !state.member.available }));
   $("refresh").addEventListener("click", () => refresh());
-  $("logout").addEventListener("click", async () => { if (busy) return; busy = true; generation++; try { await request("logout", {}, false); message("Você saiu."); } catch (error) { message(error.message); } finally { busy = false; clear(); } });
+  const signOut = async () => { if (busy) return; busy = true; generation++; try { await request("logout", {}, false); message("Você saiu."); } catch (error) { message(error.message); } finally { busy = false; clear(); } };
+  $("logout").addEventListener("click", signOut); $("mfa-back").addEventListener("click", signOut);
   const auth = new URLSearchParams(location.search).get("auth");
   if (auth) { history.replaceState(null, "", "/assistido/"); message(auth === "confirmed" ? "Email confirmado. Você pode continuar ou alterar sua senha." : "Link inválido ou expirado. Solicite outro no mesmo navegador."); }
   refresh(); const timer = setInterval(() => { if (state) refresh(); }, 3000); window.addEventListener("pagehide", () => clearInterval(timer), { once: true });
