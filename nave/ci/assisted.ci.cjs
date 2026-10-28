@@ -228,6 +228,10 @@ test("integrated assisted pilot: accounts, durable requests, dispatch, recovery 
     await p.locator('#booking input[name="pickup"]').fill("Embarque ajustado manualmente");
     assert.equal(await p.locator("#pickup-point").textContent(), "Ainda não marcado");
     await p.locator("#point-kind").selectOption("pickup");
+    // GPS focused at zoom 17. Use a larger synthetic route than the tariff's
+    // 100m lower bound even on the narrow booking column of the desktop layout.
+    await p.locator("#booking-map .leaflet-control-zoom-out").click();
+    await p.locator("#booking-map .leaflet-control-zoom-out").click();
     await p.locator("#pick-center").click();
     const mapBox = await p.locator("#booking-map").boundingBox();
     await p.locator("#booking-map").click({ position: { x: mapBox.width * .75, y: mapBox.height * .5 } });
