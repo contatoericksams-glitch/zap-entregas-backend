@@ -4,6 +4,7 @@ const { createClient } = require("@supabase/supabase-js");
 const { createHash, randomUUID } = require("node:crypto");
 const { createRouting } = require("./routing");
 const { createGeocoding } = require("./geocoding");
+const { estimateFares } = require("./fares");
 const authOptions = { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, flowType: "pkce" };
 const publicError = (res, status, message) => res.status(status).json({ error: message });
 function cookies(req) {
@@ -226,9 +227,10 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
       for (const [key, value] of routeQuotes) if (value.until <= now) routeQuotes.delete(key);
       if (routeQuotes.size >= 500) return publicError(res, 503, "Aguarde antes de calcular outra rota.");
       const routeToken = randomUUID();
-      routeQuotes.set(routeToken, { actor: req.actor.id, route, until: now + 300000 });
+      const fares = estimateFares(route);
+      routeQuotes.set(routeToken, { actor: req.actor.id, route, fares, until: now + 300000 });
       setTimeout(() => routeQuotes.delete(routeToken), 300000).unref();
-      res.json({ routeToken, route, validForSeconds: 300 });
+      res.json({ routeToken, route, fares, expiresAt: new Date(now + 300000).toISOString(), validForSeconds: 300 });
     } catch (error) {
       const invalid = ["invalid_points_or_consent", "invalid_local_distance"].includes(error.message);
       const cooldown = error.message === "routing_cooldown";
@@ -247,7 +249,9 @@ function createAssistedApp({ url, publishableKey, serviceKey, origin, makeClient
     if (Object.hasOwn(b.data, "routeToken")) {
       const quote = routeQuotes.get(b.data.routeToken);
       if (b.action !== "start" || !quote || quote.actor !== req.actor.id || quote.until <= Date.now()) return publicError(res, 409, "A rota venceu ou não pertence a esta conta. Calcule novamente antes de solicitar.");
-      b.data = { ...b.data, routePreview: quote.route }; delete b.data.routeToken;
+      if (!Object.hasOwn(quote.fares, b.data.category) && Object.keys(quote.fares).length) return publicError(res, 400, "Categoria inválida para a estimativa.");
+      const fareEstimate = quote.fares[b.data.category];
+      b.data = { ...b.data, routePreview: { ...quote.route, ...(fareEstimate ? { fareEstimate } : {}) } }; delete b.data.routeToken;
     }
     const { data, error } = await admin.rpc("nave_assisted_command", { p_actor: req.actor.id, p_aal2: req.actor.aal2, p_action: b.action, p_id: b.rideId, p_version: b.version, p_key: b.requestKey, p_data: b.data });
     if (error) {

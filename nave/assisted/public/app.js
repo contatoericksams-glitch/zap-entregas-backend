@@ -50,6 +50,7 @@
       card.append(text("p", phases[r.phase], "phase"), text("h3", r.category.toUpperCase()), text("p", "Embarque: " + r.pickup + "\nDestino: " + r.destination, "route"), text("p", "Passageiro: " + r.passenger_name + (r.driver_name ? " · Motorista: " + r.driver_name : "")), text("small", "Pedido " + r.id.slice(0, 8) + " · versão " + r.version));
       if (r.route_preview?.schemaVersion === 1) {
         card.append(text("p", routeUI.describe(r.route_preview)));
+        card.append(text("p", routeUI.fareDescription(r.route_preview.fareEstimate), "fare-estimate"));
         const view = text("button", "Ver trajeto no mapa", "secondary"); view.type = "button";
         view.addEventListener("click", () => routeUI.view(r.route_preview)); card.append(view);
       }

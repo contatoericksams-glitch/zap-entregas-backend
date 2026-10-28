@@ -2,6 +2,13 @@
 window.NaveRouteMap = (() => {
   let request, message, bookingMap, viewerMap, config, pickup, destination, routeToken, preview, line, markers = [], generation = 0, calculating = false, selectedView = null, viewGeneration = 0;
   const $ = id => document.getElementById(id);
+  let fareEstimates = {}, quoteExpires = 0;
+  const money = cents => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  function fareDescription(fare) { return fare?.testOnly === true && fare.currency === "BRL" && Number.isSafeInteger(fare.amountCents) && fare.amountCents >= 0 ? "Estimativa de teste: " + money(fare.amountCents) + " · " + fare.category.toUpperCase() + ". Sem cobrança. Tarifa de simulação por base, distância e tempo." : "Sem estimativa de preço para este pedido."; }
+  function renderFare() {
+    const fare = fareEstimates[$("booking").elements.category.value];
+    $("fare-summary").textContent = routeToken && Date.now() < quoteExpires ? fareDescription(fare) + (fare ? " Válida junto com a rota por até cinco minutos." : "") : "Calcule uma rota para ver a estimativa de teste. Sem cobrança.";
+  }
   let pendingKind = null, searchGeneration = 0, locating = false;
   const confirmed = { pickup: false, destination: false };
   const local = p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng) && p.lat >= -26.5 && p.lat <= -24.4 && p.lng >= -55.7 && p.lng <= -52.4;
@@ -26,7 +33,7 @@ window.NaveRouteMap = (() => {
     return map;
   }
   function pointLabel(p) { return p ? p.lat.toFixed(5) + ", " + p.lng.toFixed(5) : "Ainda não marcado"; }
-  function invalidate() { generation++; locating = false; $("use-location").disabled = false; calculating = false; $("calculate-route").disabled = false; routeToken = null; preview = null; if (line && bookingMap) bookingMap.removeLayer(line); line = null; $("route-summary").textContent = "Calcule a rota após confirmar os dois pontos."; }
+  function invalidate() { generation++; fareEstimates = {}; quoteExpires = 0; locating = false; $("use-location").disabled = false; calculating = false; $("calculate-route").disabled = false; routeToken = null; preview = null; renderFare(); if (line && bookingMap) bookingMap.removeLayer(line); line = null; $("route-summary").textContent = "Calcule a rota após confirmar os dois pontos."; }
   function drawPoints() {
     for (const marker of markers) bookingMap.removeLayer(marker);
     markers = [];
@@ -68,6 +75,7 @@ window.NaveRouteMap = (() => {
   }
   function bind(deps) {
     request = deps.request; message = deps.message;
+    $("booking").elements.category.addEventListener("change", renderFare);
     for (const kind of ["pickup", "destination"]) {
       address(kind).addEventListener("input", () => {
         clearResults(); invalidate(); confirmed[kind] = false;
@@ -142,18 +150,19 @@ window.NaveRouteMap = (() => {
         if (current !== generation) return;
         if (!result.routeToken || result.route?.testOnly !== true || result.route.geometry?.type !== "LineString") throw new Error("Rota incompleta. Calcule novamente.");
         routeToken = result.routeToken; preview = result.route;
+        fareEstimates = result.fares || {}; quoteExpires = Date.parse(result.expiresAt) || 0; renderFare();
         if (line) bookingMap.removeLayer(line);
         line = L.geoJSON(preview.geometry, { style: { color: "#087455", weight: 5 } }).addTo(bookingMap);
         bookingMap.fitBounds(line.getBounds(), { padding: [25, 25], maxZoom: 16 }); $("route-summary").textContent = describe(preview);
         message("Rota de teste calculada. Confira os pontos e os endereços antes de solicitar. A prévia vale por cinco minutos.");
-      } catch (error) { if (current === generation) { routeToken = null; preview = null; message(error.message); } }
+      } catch (error) { if (current === generation) { routeToken = null; preview = null; fareEstimates = {}; quoteExpires = 0; renderFare(); message(error.message); } }
       finally { if (current === generation) { calculating = false; $("calculate-route").disabled = false; } }
     });
     $("view-map-consent").addEventListener("change", () => { if ($("view-map-consent").checked && selectedView) view(selectedView); else { viewGeneration++; if (viewerMap) viewerMap.remove(); viewerMap = null; } });
     $("close-route-view").addEventListener("click", () => { viewGeneration++; selectedView = null; if (viewerMap) viewerMap.remove(); viewerMap = null; $("saved-route-view").hidden = true; });
   }
-  return Object.freeze({ bind, describe, view, resetBooking,
-    booking() { return calculating || ((pickup || destination) && !routeToken) ? { error: "Calcule a rota dos pontos escolhidos ou remova os pontos para continuar apenas com os endereços." } : routeToken ? { routeToken } : {}; },
+  return Object.freeze({ bind, describe, fareDescription, view, resetBooking,
+    booking() { if (routeToken && Date.now() >= quoteExpires) { invalidate(); return { error: "A rota e a estimativa venceram. Calcule novamente antes de solicitar." }; } return calculating || ((pickup || destination) && !routeToken) ? { error: "Calcule a rota dos pontos escolhidos ou remova os pontos para continuar apenas com os endereços." } : routeToken ? { routeToken } : {}; },
     clear() { resetBooking(); viewGeneration++; selectedView = null; if (viewerMap) viewerMap.remove(); viewerMap = null; $("saved-route-view").hidden = true; $("view-map-consent").checked = false; config = null; }
   });
 })();
