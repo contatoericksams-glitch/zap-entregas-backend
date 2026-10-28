@@ -42,3 +42,9 @@ Reduzir a quantidade de testes manuais repetitivos; executar várias categorias,
 **PMC:** permanece `47/100 (47%)`. Os novos testes não dão pontos por si só; ao passar um critério funcional completo listado no PMC, anexar evidência e atualizar o checkbox correspondente. **MC = NÃO EXECUTADO**.
 
 Próxima prioridade funcional: implementar autenticação real separada de passageiros e motoristas e jornada final, com testes E2E em dois aparelhos/contas distintas, mantendo o webhook Meta operacional intocado.
+
+## Adendo de 23/10/2026 — preparação automática com contas distintas
+
+Além do P09 humano histórico descrito acima, a branch de revisão `codex/nave-wa-account-link-draft` prepara `nave-auth-isolated.yml` com Auth/OTP, permissões dos apps e Central com MFA em Supabase descartável. A nova etapa `app-browser.ci.cjs` abre as telas com contextos Chromium independentes e credenciais de fixture pelos formulários. Testa as quatro categorias, aceite concorrente, reconexão, bloqueio de conta externa, cancelamento/recusa e logout. Resultado: [run 40032145912](https://github.com/contatoericksams-glitch/zap-entregas-backend/actions/runs/40032145912), commit `30f32377647f43685fa642abe182b16c4588d271`, concluiu **success**. Os 164 testes locais passaram no runner, duas baterias API/Supabase passaram e a bateria Chromium passou, incluindo todas as verificações de tela citadas. Stack encerrada, artefatos vazios. Detalhes em `ci/README.md`.
+
+A nova branch de revisão é uma exceção explícita às instruções históricas de branch acima, exclusivamente para esse workflow efêmero. Não alterar nem disparar o P09 no Supabase NAVE hospedado como parte dessa bateria. Não há deploy, gravação em corridas reais, Meta, GPS ou pagamento. Chromium no runner não representa dois aparelhos físicos, aplicativo definitivo nem homologação nova. PMC continua 47/100.

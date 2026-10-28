@@ -6,13 +6,18 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js",
+    "preview:passenger": "node core/passenger-preview-server.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.0",
-    "express": "^5.1.0"
+    "@supabase/supabase-js": "2.118.0",
+    "express": "5.3.0",
+    "leaflet": "1.9.4"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
   }
 }

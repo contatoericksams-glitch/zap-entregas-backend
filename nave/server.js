@@ -21,6 +21,17 @@ const config = {
   supabaseServiceRole: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
 };
 
+// This gate requires separate staging project/sender credentials and is false by default.
+const { resolveChannelLinkStagingConfig } = require("./core/channel-link-staging-config");
+const channelLinkStaging = resolveChannelLinkStagingConfig(process.env, {
+  supabaseUrl: config.supabaseUrl,
+  publishableKey: process.env.SUPABASE_PUBLISHABLE_KEY || "",
+  serviceRoleKey: config.supabaseServiceRole,
+  phoneNumberId: config.phoneNumberId,
+  accessToken: config.accessToken,
+});
+const channelLinkStagingReady = channelLinkStaging.ready;
+
 const supabase = config.supabaseUrl && config.supabaseServiceRole
   ? createClient(config.supabaseUrl, config.supabaseServiceRole, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -105,6 +116,52 @@ async function sendWhatsAppMessage(to, message) {
     throw new Error("Meta message API text fallback HTTP " + fallback.status);
   }
   throw new Error("Meta message API HTTP " + response.status);
+}
+
+async function sendStagingChannelLinkCode(phoneE164, code) {
+  const { buildChannelLinkAuthTemplate } = require("./core/channel-link-whatsapp-template");
+  const response = await fetch(
+    `https://graph.facebook.com/${channelLinkStaging.metaGraphVersion}/${channelLinkStaging.metaPhoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${channelLinkStaging.metaAccessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildChannelLinkAuthTemplate({
+        phoneE164,
+        code,
+        templateName: channelLinkStaging.metaTemplateName,
+        language: channelLinkStaging.metaTemplateLanguage,
+      })),
+      signal: AbortSignal.timeout(10000),
+    }
+  );
+  if (!response.ok) throw new Error("Staging WhatsApp delivery failed");
+}
+
+if (channelLinkStagingReady) {
+  const { createChannelLinkSupabaseAdapters } = require("./core/channel-link-supabase");
+  const { createChannelLinkService } = require("./core/channel-link");
+  const { createChannelLinkRouter } = require("./core/channel-link-router");
+  const isolatedSupabase = createClient(channelLinkStaging.url, channelLinkStaging.serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const adapters = createChannelLinkSupabaseAdapters({
+    supabase: isolatedSupabase,
+    deliverCode: ({ phoneE164, code }) => sendStagingChannelLinkCode(phoneE164, code),
+  });
+  const service = createChannelLinkService({
+    secret: channelLinkStaging.secret,
+    ...adapters,
+    enabled: true,
+  });
+  app.use("/api/v5", createChannelLinkRouter({
+    enabled: true,
+    url: channelLinkStaging.url,
+    publishableKey: channelLinkStaging.publishableKey,
+    channelLink: service,
+  }));
 }
 
 async function processWebhook(payload) {
@@ -199,6 +256,7 @@ if (process.env.NODE_ENV === "staging") {
     res.set("Cache-Control", "no-store").json({
       environment: "staging",
       notificationReady: Object.values(configured).every(Boolean),
+      channelLinkEnabled: channelLinkStagingReady,
       ...configured,
       commercialRidesEnabled: false
     });
