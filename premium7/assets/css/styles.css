@@ -24,3 +24,6 @@
 .scene-photo{position:relative;background:#172028;overflow:hidden}
 .scene-photo>img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .scene-photo figcaption{position:absolute;right:10px;bottom:9px;left:10px;text-align:right;color:#fff;font-size:.63rem;line-height:1.35;text-shadow:0 1px 4px #000;pointer-events:none}
+
+/* Category references: only approved assets; no fabricated portfolio. */
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:24px;max-width:850px}.gallery-item{margin:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}.gallery-item img{display:block;width:100%;height:auto}.gallery-item figcaption{padding:16px 20px;font-size:.85rem;color:#515f68}.gallery-cta{margin-top:28px}.gallery-empty{flex-direction:column;align-items:flex-start;padding:36px;color:#fff;background:linear-gradient(135deg,#172028,#293845);aspect-ratio:1.85;gap:10px}.gallery-empty strong{font-size:clamp(1.6rem,3vw,2.5rem);line-height:1.15}.gallery-empty p,.gallery-empty .eyebrow{margin:0}.gallery-empty small{color:#d2d8dc}.scene-photo figcaption{background:#101820dd;padding:6px 9px;border-radius:4px}.gallery-section{background:var(--paper)}
